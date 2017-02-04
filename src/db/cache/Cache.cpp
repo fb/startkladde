@@ -34,6 +34,7 @@
 #include "src/model/LaunchMethod.h"
 #include "src/model/Person.h"
 #include "src/model/Plane.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h"
 #include "src/db/Database.h"
 #include "src/concurrent/synchronized.h"
 #include "src/util/qString.h"
@@ -72,26 +73,30 @@ Database &Cache::getDatabase ()
 // given type. They must be specialized before they are used.
 
 // Specialize list getters (const)
-template<> const EntityList<Plane       > &Cache::objectList<Plane       > () const { return planes       ; }
-template<> const EntityList<Person      > &Cache::objectList<Person      > () const { return people       ; }
-template<> const EntityList<LaunchMethod> &Cache::objectList<LaunchMethod> () const { return launchMethods; }
+template<> const EntityList<Plane         > &Cache::objectList<Plane         > () const { return planes         ; }
+template<> const EntityList<Person        > &Cache::objectList<Person        > () const { return people         ; }
+template<> const EntityList<LaunchMethod  > &Cache::objectList<LaunchMethod  > () const { return launchMethods  ; }
+template<> const EntityList<FlarmNetRecord> &Cache::objectList<FlarmNetRecord> () const { return flarmNetRecords; }
 
 // Specialize list getters (non-const)
-template<> EntityList<Plane       > &Cache::objectList<Plane       > () { return planes       ; }
-template<> EntityList<Person      > &Cache::objectList<Person      > () { return people       ; }
-template<> EntityList<LaunchMethod> &Cache::objectList<LaunchMethod> () { return launchMethods; }
+template<> EntityList<Plane         > &Cache::objectList<Plane         > () { return planes         ; }
+template<> EntityList<Person        > &Cache::objectList<Person        > () { return people         ; }
+template<> EntityList<LaunchMethod  > &Cache::objectList<LaunchMethod  > () { return launchMethods  ; }
+template<> EntityList<FlarmNetRecord> &Cache::objectList<FlarmNetRecord> () { return flarmNetRecords; }
 
 // Specialize hash getters (const)
-template<> const QHash<dbId, Plane       > &Cache::objectsByIdHash<Plane       > () const { return        planesById; }
-template<> const QHash<dbId, Person      > &Cache::objectsByIdHash<Person      > () const { return        peopleById; }
-template<> const QHash<dbId, Flight      > &Cache::objectsByIdHash<Flight      > () const { return       flightsById; }
-template<> const QHash<dbId, LaunchMethod> &Cache::objectsByIdHash<LaunchMethod> () const { return launchMethodsById; }
+template<> const QHash<dbId, Plane         > &Cache::objectsByIdHash<Plane         > () const { return          planesById; }
+template<> const QHash<dbId, Person        > &Cache::objectsByIdHash<Person        > () const { return          peopleById; }
+template<> const QHash<dbId, Flight        > &Cache::objectsByIdHash<Flight        > () const { return         flightsById; }
+template<> const QHash<dbId, LaunchMethod  > &Cache::objectsByIdHash<LaunchMethod  > () const { return   launchMethodsById; }
+template<> const QHash<dbId, FlarmNetRecord> &Cache::objectsByIdHash<FlarmNetRecord> () const { return flarmNetRecordsById; }
 
 // Specialize hash getters (non-const)
-template<> QHash<dbId, Plane       > &Cache::objectsByIdHash<Plane       > () { return        planesById; }
-template<> QHash<dbId, Person      > &Cache::objectsByIdHash<Person      > () { return        peopleById; }
-template<> QHash<dbId, Flight      > &Cache::objectsByIdHash<Flight      > () { return       flightsById; }
-template<> QHash<dbId, LaunchMethod> &Cache::objectsByIdHash<LaunchMethod> () { return launchMethodsById; }
+template<> QHash<dbId, Plane         > &Cache::objectsByIdHash<Plane         > () { return          planesById; }
+template<> QHash<dbId, Person        > &Cache::objectsByIdHash<Person        > () { return          peopleById; }
+template<> QHash<dbId, Flight        > &Cache::objectsByIdHash<Flight        > () { return         flightsById; }
+template<> QHash<dbId, LaunchMethod  > &Cache::objectsByIdHash<LaunchMethod  > () { return   launchMethodsById; }
+template<> QHash<dbId, FlarmNetRecord> &Cache::objectsByIdHash<FlarmNetRecord> () { return flarmNetRecordsById; }
 
 
 // ************************
@@ -139,6 +144,11 @@ void Cache::refreshPeople (OperationMonitorInterface monitor)
 void Cache::refreshLaunchMethods (OperationMonitorInterface monitor)
 {
 	refreshObjects<LaunchMethod> (monitor);
+}
+
+void Cache::refreshFlarmNetRecords (OperationMonitorInterface monitor)
+{
+	refreshObjects<FlarmNetRecord> (monitor);
 }
 
 void Cache::refreshFlightsOf (const QString &description, const QDate &date,
@@ -232,7 +242,8 @@ void Cache::refreshAll (OperationMonitorInterface monitor)
 	monitor.progress (5, 8); refreshPreparedFlights (monitor);
 	monitor.progress (6, 8); refreshLocations       (monitor);
 	monitor.progress (7, 8); refreshAccountingNotes (monitor);
-	monitor.progress (8, 8, tr ("Finished"));
+	monitor.progress (8, 8); refreshFlarmNetRecords (monitor);
+	monitor.progress (9, 8, tr ("Finished"));
 }
 
 void Cache::refreshFlights (OperationMonitorInterface monitor)
@@ -420,6 +431,7 @@ void Cache::dbChanged (DbEvent event)
 		case DbEvent::tableLaunchMethods : handleDbChanged<LaunchMethod> (event); break;
 		case DbEvent::tablePeople        : handleDbChanged<Person>       (event); break;
 		case DbEvent::tablePlanes        : handleDbChanged<Plane>        (event); break;
+		case DbEvent::tableFlarmNetRecords : handleDbChanged<FlarmNetRecord> (event); break;
 		// no default
 	}
 

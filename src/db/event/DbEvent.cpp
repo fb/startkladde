@@ -17,6 +17,7 @@ class Plane;
 class Flight;
 class Person;
 class LaunchMethod;
+class FlarmNetRecord;
 
 /**
  * This stinks, but sending signals across threads requires queued events,
@@ -66,10 +67,11 @@ QString DbEvent::tableString (DbEvent::Table table)
 {
 	switch (table)
 	{
-		case tablePeople: return notr ("people");
-		case tableFlights: return notr ("flights");
-		case tableLaunchMethods: return notr ("launch methods");
-		case tablePlanes: return notr ("planes");
+		case tablePeople:		return notr ("people");
+		case tableFlights:		return notr ("flights");
+		case tableLaunchMethods: 	return notr ("launch methods");
+		case tablePlanes:		return notr ("planes");
+		case tableFlarmNetRecords:	return notr ("flarmnet");
 	}
 
 	assert (!notr ("Unhandled table"));
@@ -81,3 +83,4 @@ template<> DbEvent::Table DbEvent::getTable<Flight>       () { return tableFligh
 template<> DbEvent::Table DbEvent::getTable<Plane>        () { return tablePlanes       ; }
 template<> DbEvent::Table DbEvent::getTable<Person>       () { return tablePeople       ; }
 template<> DbEvent::Table DbEvent::getTable<LaunchMethod> () { return tableLaunchMethods; }
+template<> DbEvent::Table DbEvent::getTable<FlarmNetRecord> () { return tableFlarmNetRecords; }

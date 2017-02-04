@@ -25,7 +25,7 @@
  * The object must provide a changed (DbEvent) signal.
  *
  * This uses a DbEventMonitor rather than an AutomaticEntityListBase with a
- * changed slot in order to avoid a diamon inheritance from QObject.
+ * changed slot in order to avoid a diamond inheritance from QObject.
  */
 template<class T> class AutomaticEntityList: public EntityList<T>, DbEventMonitor::Listener
 {

@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <QtCore/QDebug>
 #include <QList>
 #include <QString>
 #include <QStringList>
@@ -11,6 +12,7 @@
 #include "src/model/LaunchMethod.h"
 #include "src/model/Person.h"
 #include "src/model/Plane.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h"
 #include "src/container/SortedSet_impl.h"
 #include "src/i18n/notr.h"
 
@@ -47,10 +49,24 @@ EntityList<LaunchMethod> Cache::getLaunchMethods ()
 	synchronizedReturn (dataMutex, launchMethods);
 }
 
-
-EntityList<Flight> Cache::getFlightsToday ()
+EntityList<FlarmNetRecord> Cache::getFlarmNetRecords ()
 {
-	synchronizedReturn (dataMutex, flightsToday);
+	synchronizedReturn (dataMutex, flarmNetRecords);
+}
+
+
+EntityList<Flight> Cache::getFlightsToday (bool includeTowflights)
+{
+	if (includeTowflights)
+	{
+		QList<Flight> flights=getFlightsToday (false).getList ();
+		flights+=Flight::makeTowflights (flights, *this);
+		return flights;
+	}
+	else
+	{
+		synchronizedReturn (dataMutex, flightsToday);
+	}
 }
 
 EntityList<Flight> Cache::getFlightsOther ()
@@ -58,9 +74,46 @@ EntityList<Flight> Cache::getFlightsOther ()
 	synchronizedReturn (dataMutex, flightsOther);
 }
 
-EntityList<Flight> Cache::getPreparedFlights ()
+EntityList<Flight> Cache::getPreparedFlights (bool includeTowflights)
 {
-	synchronizedReturn (dataMutex, preparedFlights);
+	if (includeTowflights)
+	{
+		QList<Flight> flights=getPreparedFlights (false).getList ();
+
+		// Add the prepared towflights. Note that, contrary to the flying
+		// flights, a prepared towflight always corresponds to a prepared
+		// flight. Therefore, we can base the list of prepared towflights on the
+		// list of prepared flights (the list of flying towflights must be based
+		// an the list of all of today's flights, not just the flying flights).
+		flights+=Flight::makeTowflights (flights, *this);
+		return flights;
+	}
+	else
+	{
+		synchronizedReturn (dataMutex, preparedFlights);
+	}
+}
+
+EntityList<Flight> Cache::getFlyingFlights (bool includeTowflights)
+{
+	// Add flying flights to the list. Prepared flights can also be flying if
+	// their mode is "coming". Don't directly access the preparedFlights
+	// property - the access must be synchronized. We don't add the towflights
+	// for prepared flights - coming flights don't have a launch method, and
+	// therefore no towflights.
+
+	QList<Flight> candidates;
+	candidates.append (getFlightsToday    (includeTowflights).getList ());
+	candidates.append (getPreparedFlights (false            ).getList ());
+
+	// Only keep flying flights
+	EntityList<Flight> result;
+	foreach (const Flight &flight, candidates)
+		if (flight.isFlying ())
+			result.append (flight);
+
+	// Return the list
+	return result;
 }
 
 QDate Cache::getTodayDate ()
@@ -177,6 +230,41 @@ dbId Cache::getPlaneIdByRegistration (const QString &registration)
 	return invalidId;
 }
 
+QList<dbId> Cache::getPlaneIdsByFlarmId (const QString &flarmId)
+{
+	synchronizedReturn (dataMutex, planeIdsByFlarmId.values (flarmId));
+}
+
+// FIXME remove - the Flarm ID need not be unique, so all functions calling this
+// should handle multiple results (or ignore it explicitly)
+dbId Cache::getPlaneIdByFlarmId (const QString &flarmId)
+{
+	synchronized (dataMutex)
+	{
+		if (!planeIdsByFlarmId.contains (flarmId))
+			return invalidId;
+
+		return planeIdsByFlarmId.value (flarmId);
+	}
+
+	assert (!notr ("Not returned yet"));
+	return invalidId;
+}
+
+dbId Cache::getFlarmNetRecordIdByFlarmId (const QString &flarmId)
+{
+	synchronized (dataMutex)
+	{
+		if (!flarmNetRecordIdsByFlarmId.contains (flarmId))
+			return invalidId;
+
+		return flarmNetRecordIdsByFlarmId.value (flarmId);
+	}
+
+	assert (!notr ("Not returned yet"));
+	return invalidId;
+}
+
 QList<dbId> Cache::getPersonIdsByName (const QString &lastName, const QString &firstName)
 {
 	QPair<QString, QString> pair (lastName.toLower (), firstName.toLower ());
@@ -221,6 +309,15 @@ dbId Cache::getLaunchMethodByType (LaunchMethod::Type type) const
 	return invalidId;
 }
 
+QList<dbId> Cache::getFlarmNetRecordIds () const {
+	synchronizedReturn (dataMutex,  flarmNetRecordIdsByFlarmId.values());
+}
+
+/*
+QList<FlarmNetRecord> Cache::getFlarmNetRecords () const {
+	synchronizedReturn (dataMutex,  flarmNetRecords);
+}
+*/
 
 // ******************
 // ** String lists **
@@ -340,14 +437,16 @@ dbId Cache::personFlying (dbId id)
 	template EntityList<T> Cache::getObjects () const; \
 	// Empty line
 
-INSTANTIATE_TEMPLATES (Person      )
-INSTANTIATE_TEMPLATES (Plane       )
-INSTANTIATE_TEMPLATES (Flight      )
-INSTANTIATE_TEMPLATES (LaunchMethod)
+INSTANTIATE_TEMPLATES (Person        )
+INSTANTIATE_TEMPLATES (Plane         )
+INSTANTIATE_TEMPLATES (Flight        )
+INSTANTIATE_TEMPLATES (LaunchMethod  )
+INSTANTIATE_TEMPLATES (FlarmNetRecord)
 
-INSTANTIATE_NON_FLIGHT_TEMPLATES (Person      )
-INSTANTIATE_NON_FLIGHT_TEMPLATES (Plane       )
-INSTANTIATE_NON_FLIGHT_TEMPLATES (LaunchMethod)
+INSTANTIATE_NON_FLIGHT_TEMPLATES (Person        )
+INSTANTIATE_NON_FLIGHT_TEMPLATES (Plane         )
+INSTANTIATE_NON_FLIGHT_TEMPLATES (LaunchMethod  )
+INSTANTIATE_NON_FLIGHT_TEMPLATES (FlarmNetRecord)
 
 #undef INSTANTIATE_TEMPLATES
 #undef INSTANTIATE_NON_FLIGHT_TEMPLATES

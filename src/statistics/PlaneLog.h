@@ -12,6 +12,7 @@
 class Cache;
 class Flight;
 
+// TODO: consider basing this (and other statistics classes) on ObjectListModel
 class PlaneLog: public QAbstractTableModel
 {
 		Q_OBJECT

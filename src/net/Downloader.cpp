@@ -119,6 +119,10 @@ void Downloader::replyFinished ()
 		return;
 	}
 
+	// FIXME the reply is scheduled for deletion, and later emitted in a signal.
+	// The only reason that this does not break is that the signals are
+	// connected directly (not queued), but we don't want to rely on that. The
+	// same is true for replyError.
 	sender ()->deleteLater ();
 	reply=NULL;
 

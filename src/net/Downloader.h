@@ -28,6 +28,8 @@ class QUrl;
  *    void downloadSucceeded (int state, QNetworkReply *reply);
  *    void downloadFailed    (int state, QNetworkReply *reply, QNetworkReply::NetworkError code);
  */
+// TODO should allow access to the reply after the download finished, not just via the signals
+// TODO should handle redirects
 class Downloader: public QObject
 {
 		Q_OBJECT

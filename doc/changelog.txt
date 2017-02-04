@@ -1,8 +1,32 @@
-  Improvements:
+  New features:
     - New command line option: --database-name
     - Remove warning message stating the connection has been canceled
     - Version is displayed in main window title bar
-  
+  Improvements:
+    - Support of Flarm to detect start and landing automatically
+    - Support of Flarm to adjust system time based on GPS time
+    - Support of Flarm to show planes near the airfield in a table
+      (Flarm Overview)
+    - Support of Flarm to show planes near the airfield on a map (Flarm
+      Radar
+    - Qwt6 library added to cmake
+    - Changed the term "Hauptflugbuch" (German translation only)
+    - Changed build system from make/qmake to cmake
+    - Bugfix: crash after canceling an update object operation from the main
+      window
+    - Bugfix: (wrong) time zone displayed for time in main window
+    - Password protection for merging people
+    - Flight database window and CSV export
+    - Internationalization
+    - Password protect medical data (view and change)
+    - Add explicit database permission for connections from localhost (not
+      included in "%"), fixes connection problem on Windows
+    - Launch method editor: option for towplanes: "select when creating a
+      flight" or "specify registration"
+    - Changed tab order in settings window
+    - Improved messages when merging people
+    - Added tooltips to GUI 
+
 2.1.1 (2012-06-17):
   New features:
     - Internationalization
@@ -26,6 +50,7 @@
     - Add explicit database permission for connections from localhost (not
       included in "%"), fixes connection problem on Windows
     - Added a Unix manual page
+>>>>>>> master
 
 2.1.0 (2010-10-24):
   New features:

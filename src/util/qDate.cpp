@@ -1,10 +1,3 @@
-/*
- * qDate.cpp
- *
- *  Created on: 09.08.2010
- *      Author: martin
- */
-
 #include "qDate.h"
 
 #include <QApplication>
@@ -23,7 +16,7 @@ QDate validDate (const QDate &date, const QDate &invalidOption)
 		return invalidOption;
 }
 
-QString dateRangeToString (const QDate &first, const QDate &last, const QString &separator, Qt::DateFormat format)
+QString dateRangeToString (const QDate &first, const QDate &last, Qt::DateFormat format, const QString &separator)
 {
 	if (!first.isValid () || !last.isValid ())
 		return qApp->translate ("QDate", "invalid");

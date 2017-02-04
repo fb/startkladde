@@ -17,7 +17,13 @@
 /**
  * An implementation of AbstractObjectList which allows the list to be modified
  * explicitly.
+ *
+ * Objects stored in this container must be assignable; it is, however, possible
+ * to store pointers to objects. In this case, the objects themselves do not
+ * have to be assignable; pointers always are assignable.
  */
+// TODO: maybe we should have a pointer based list instead of (or in addition
+// to) the value based list
 template<class T> class MutableObjectList: public AbstractObjectList<T>
 {
 	public:
@@ -34,6 +40,8 @@ template<class T> class MutableObjectList: public AbstractObjectList<T>
 
 
 		// Object access
+		// FIXME return new index?
+		// FIXME allow modifying
 		virtual void removeAt (int index);
 		virtual void append (const T &object);
 		virtual void prepend (const T &object);
@@ -41,6 +49,8 @@ template<class T> class MutableObjectList: public AbstractObjectList<T>
 		virtual void replace (int index, const T &object);
 		virtual void clear ();
 		virtual void replaceList (const QList<T> &newList);
+		virtual void update (int index);
+//		virtual Mutator mutate (int index);
 //		virtual void appendList (const QList<T> &other);
 //		virtual void appendList (const AbstractObjectList<T> &other);
 
@@ -177,7 +187,7 @@ template<class T> void MutableObjectList<T>::insert (int index, const T &object)
 template<class T> void MutableObjectList<T>::replace (int index, const T &object)
 {
 	list.replace (index, object);
-	QAbstractItemModel::dataChanged (QAbstractItemModel::createIndex (index, 0), QAbstractItemModel::createIndex (index, 0));
+	update (index);
 }
 
 /**
@@ -207,6 +217,26 @@ template<class T> void MutableObjectList<T>::replaceList (const QList<T> &newLis
 	list=newList;
 	QAbstractItemModel::reset ();
 }
+
+/**
+ * Emits the appropriate signals to notify listeners of an object change
+ *
+ * While it is not possible to modify an object directly, the object may be or
+ * contain a pointer to another object, which can be modified. Call this method
+ * after modifying an object in the list in any way.
+ *
+ * @param index the index of the object that changed
+ */
+template<class T> void MutableObjectList<T>::update (int index)
+{
+	QAbstractItemModel::dataChanged (QAbstractItemModel::createIndex (index, 0), QAbstractItemModel::createIndex (index, 0));
+}
+
+//template<class T> typename MutableObjectList<T>::Mutator MutableObjectList<T>::mutate (int index)
+//{
+//	return Mutator (*this, index);
+//}
+
 
 ///**
 // * This is probably slow as a copy of the lists has to be made.

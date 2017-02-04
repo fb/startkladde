@@ -9,8 +9,12 @@
 #define FLIGHTSORTFILTERPROXYMODEL_H_
 
 #include <QSortFilterProxyModel>
+#include <QSet>
+
+#include "src/db/dbId.h"
 
 class Cache;
+class FlightReference;
 
 class FlightSortFilterProxyModel: public QSortFilterProxyModel
 {
@@ -28,19 +32,33 @@ class FlightSortFilterProxyModel: public QSortFilterProxyModel
 		virtual void setCustomSorting (bool customSorting);
 		virtual bool getCustomSorting () const { return customSorting; }
 		virtual void sortCustom ();
+		virtual void setFlarmIdColumn (int column);
+		virtual void setIdColumn (int column);
+
+		virtual void setForceVisible (const FlightReference &flight, bool forceVisible);
 
 	protected:
 		virtual bool filterAcceptsRow (int sourceRow, const QModelIndex &sourceParent) const;
+		virtual bool filterAcceptsColumn (int sourceColumn, const QModelIndex &sourceParent) const;
 		virtual bool lessThan (const QModelIndex &left, const QModelIndex &right) const;
+
+	protected slots:
+		void settingsChanged ();
 
 	private:
 		Cache &cache;
 
-		// Filter options
+		// Row filter options
 		bool showPreparedFlights; // TODO: remove this, the main window takes care of that
 		bool hideFinishedFlights;
 		bool alwaysShowExternalFlights;
 		bool alwaysShowErroneousFlights;
+		QSet<FlightReference> flightsForceVisible;
+
+		// Column filter options
+		int flarmIdColumn;
+		int idColumn;
+		bool acceptDebugColumns;
 
 		// Sort options
 		bool customSorting;

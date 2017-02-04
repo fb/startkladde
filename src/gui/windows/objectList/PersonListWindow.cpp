@@ -89,7 +89,8 @@ void PersonListWindow::displayMedicalDataAction_triggered ()
 		personModel->setDisplayMedicalData (false);
 	}
 
-	// FIXME refresh the model
+	// FIXME this should be signaled by the model via a signal
+	refreshColumn (personModel->medicalColumn ());
 }
 
 void PersonListWindow::mergeAction_triggered ()

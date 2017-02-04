@@ -21,6 +21,10 @@
 #include "src/i18n/notr.h"
 #include "src/version.h"
 #include "src/i18n/TranslationManager.h"
+#include "src/flarm/Flarm.h"
+#include "src/i18n/LanguageConfiguration.h"
+#include "src/io/dataStream/DataStream.h"
+#include "src/io/serial/SerialPortList.h"
 
 // For test_database
 //#include "src/model/Plane.h"
@@ -241,15 +245,33 @@ int test_database ()
 	return 0;
 }
 
+#include "src/gui/windows/input/ChoiceDialog.h"
+
+void testUi (QApplication &a)
+{
+	(void)a;
+
+	ChoiceDialog dialog (NULL);
+	dialog.setText ("<html><b>Choose</b></html>:");
+	dialog.addOption ("&Foo");
+	dialog.addOption ("&Bar");
+	dialog.setSelectedOption (1);
+	int result=dialog.exec ();
+
+	if (result==QDialog::Accepted)
+		std::cout << "Accepted: " << dialog.getSelectedOption () << std::endl;
+	else
+		std::cout << "Canceled" << std::endl;
+}
+
 int showGui (QApplication &a)
 {
 	//QApplication::setDesktopSettingsAware (FALSE); // I know better than the user
 
-	// Put light.{la,so} to styles/
-	//a.setStyle ("light, 3rd revision");
-//	if (!style.isEmpty ()) a.setStyle (style);
+	DbManager dbManager (Settings::instance ().databaseInfo);
+	Flarm flarm (NULL, dbManager);
+	MainWindow w (NULL, dbManager, flarm);
 
-	MainWindow w (NULL);
 
 	// Let the plugins initialize
 	QThread::yieldCurrentThread ();
@@ -371,6 +393,8 @@ int main (int argc, char **argv)
 {
 	QApplication application (argc, argv);
 
+	SerialPortList::createInstance ();
+
 	qApp->addLibraryPath (qApp->applicationDirPath () + notr ("/plugins"));
 
 	// Event is used as parameters for signals emitted by tasks running on
@@ -379,6 +403,7 @@ int main (int argc, char **argv)
 	qRegisterMetaType<DbEvent> (notr ("DbEvent"));
 	qRegisterMetaType<Query> (notr ("Query"));
 	qRegisterMetaType<DatabaseInfo> (notr ("DatabaseInfo"));
+	qRegisterMetaType<DataStream::State> (notr ("DataStream::State"));
 
 	// For QSettings
 	QCoreApplication::setOrganizationName (notr ("startkladde"));
@@ -424,6 +449,7 @@ int main (int argc, char **argv)
 	{
 		if (nonOptions.empty ())
 		{
+//			testUi (application);
 			ret=showGui (application);
 		}
 		else

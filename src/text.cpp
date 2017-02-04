@@ -9,6 +9,8 @@
 
 const QString whitespace=notr (" \t\r\n");
 
+// TODO split into multiple files in src/text/
+
 /**
  * Determines whether a string consists only of whitespace
  */
@@ -190,4 +192,67 @@ QString repeatString (const QString &string, unsigned int num, const QString &se
 		result+=separator+string;
 
 	return result;
+}
+
+/**
+ * Sort criterion for sorting strings with a number suffix.
+ *
+ * This criterion applies if both strings consist of an optional prefix (any
+ * number of arbitrary characters) and a numeric suffix (at least one digit).
+ *
+ * If the criterion applies, first, the prefix is compared lexicographically. If
+ * both strings have the same prefix, the suffix is compared numerically. As a
+ * special case, if the suffixes are identical numerically, they are still
+ * compared lexicographically in order to satisfy trichotomy (e. g. "abc12" vs.
+ * "abc012").
+ *
+ * If the criterion does not apply, the strings are compared using
+ * QString::operator<().
+ *
+ * Examples:
+ *   - ttyS0 < ttyS1 (same prefixes, compare suffix)
+ *   - ttyS2 < ttyS10 (would be different with purely lexicographic comparison)
+ *   - ttyS1 < ttyUSB0 (different prefixes, suffix doesn't matter)
+ *   - bar < foo (criterion does not apply, default to lexicographic comparison)
+ *   - abc012 < abc12 (special case, see above)
+ */
+bool stringNumericLessThan (const QString &s1, const QString &s2)
+{
+	// The pattern: an optional, arbitrary prefix and a numeric suffix.
+	static QRegExp re ("(.*)(\\d+)");
+
+	// If the first string does not match the pattern, default to lexicographic
+	// ordering.
+	if (re.exactMatch (s1))
+	{
+		// Store the captured groups, we're going to re-use the regexp.
+		QString a1=re.cap (1);
+		int     b1=re.cap (2).toInt ();
+
+		// If the second string does not match the pattern, default to
+		// lexicographic ordering.
+		if (re.exactMatch (s2))
+		{
+			// Store the captured groups
+			QString a2=re.cap (1);
+			int     b2=re.cap (2).toInt ();
+
+			// If the prefixes are different, compare them lexicographically. If
+			// the prefixes are identical, continue by comparing the suffixes.
+			if (a1!=a2)
+				return a1<a2;
+
+			// If the suffixes are different, compare them numerically. Note
+			// that if the numeric suffix is equal, the strings may still be
+			// different: e. g. s1="abc12" vs. s2="abc012". In order to satisfy
+			// trichotomy, we fall back to lexicographical comparison of the
+			// whole string. Otherwise, neither s1<s2, s2<s1, nor s1==s2 would
+			// be true.
+			if (b1!=b2)
+				return b1<b2;
+		}
+	}
+
+	// Default - lexicographical comparison of the whole string.
+	return s1<s2;
 }

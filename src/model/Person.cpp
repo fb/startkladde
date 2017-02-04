@@ -159,6 +159,10 @@ void Person::DefaultObjectModel::setDisplayMedicalData (bool displayMedicalData)
 
 }
 
+int Person::DefaultObjectModel::medicalColumn () const
+{
+	return 3;
+}
 
 // *******************
 // ** SQL interface **

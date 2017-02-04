@@ -24,6 +24,8 @@ class SkItemDelegate: public QItemDelegate
 
 		value_accessor (bool, ColoredSelectionEnabled, coloredSelectionEnabled);
 
+		void drawFocus (QPainter *painter, const QStyleOptionViewItem &option, const QRect &rect) const;
+
 	private:
 		bool coloredSelectionEnabled;
 };

@@ -51,6 +51,8 @@ template <class T> class ObjectListWindow: public ObjectListWindowBase
 
 		ObjectModel<T> *getObjectModel () { return objectModel; }
 
+		void refreshColumn (int column);
+
 	private:
 		void appendObjectTo (QList<T> &list, const QModelIndex &tableIndex);
 		bool checkAndDelete (const T &object);
@@ -63,6 +65,10 @@ template <class T> class ObjectListWindow: public ObjectListWindowBase
 		QSortFilterProxyModel *proxyModel;
 
 		QMenu *contextMenu;
+
+	private slots:
+		virtual void searchClear();
+		virtual void searchTextChanged (const QString&);
 };
 
 #endif

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>439</width>
-    <height>560</height>
+    <width>582</width>
+    <height>545</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
       <enum>QTabWidget::North</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>2</number>
      </property>
      <property name="documentMode">
       <bool>false</bool>
@@ -181,7 +181,7 @@
              <string>&lt;html&gt;If enabled, the database password must be entered to merge people.&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>Re&amp;quire password to merge &amp;people</string>
+             <string>Re&amp;quire password to merge people</string>
             </property>
            </widget>
           </item>
@@ -191,7 +191,7 @@
              <string>&lt;html&gt;If enabled, the database password must be entered to display the flight database.&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>Req&amp;uire password to display the &amp;flight database</string>
+             <string>Req&amp;uire password to display the flight database</string>
             </property>
            </widget>
           </item>
@@ -450,6 +450,361 @@
        </item>
        <item>
         <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="flarmTab">
+      <attribute name="title">
+       <string>&amp;Flarm</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <widget class="QGroupBox" name="flarmGroupBox">
+         <property name="toolTip">
+          <string>&lt;html&gt;If enabled, Flarm related funktionality is availabe&lt;/html&gt;</string>
+         </property>
+         <property name="title">
+          <string>Flarm &amp;enabled</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_3">
+          <item row="9" column="1">
+           <widget class="QWidget" name="widget_6" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
+             <property name="margin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QLineEdit" name="flarmMapKmlFileNameInput">
+               <property name="toolTip">
+                <string>&lt;html&gt;The name of a KML (Google Earth) file to show in the background of the flarm radar view&lt;/html&gt;</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="browseKmlFileButton">
+               <property name="text">
+                <string>&amp;Browse</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QWidget" name="flarmFileNamePane" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_10">
+             <property name="margin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QLineEdit" name="flarmFileNameInput"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="browseFlarmFileButton">
+               <property name="text">
+                <string>Browse</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="7" column="0" colspan="2">
+           <widget class="QCheckBox" name="flarmAutoDeparturesCheckbox">
+            <property name="toolTip">
+             <string>&lt;html&gt;If enabled, data from the connected flarm device will be used to automatically detect departures, landings and touch-and-gos.&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>&amp;Automatic detection of departures, landings and touch-and-gos</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0" colspan="2">
+           <widget class="QCheckBox" name="flarmDataViewableCheckbox">
+            <property name="toolTip">
+             <string>&lt;html&gt;If enabled, the Flarm radar and a list of received planes can be viewed.&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Flarm data &amp;viewable</string>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Flarm radar &amp;KML file:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmMapKmlFileNameInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Connection t&amp;ype:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmConnectionTypeInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="flarmSerialBaudRateLabel">
+            <property name="text">
+             <string>Ba&amp;ud rate:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmSerialBaudRateInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="flarmTcpHostLabel">
+            <property name="text">
+             <string>&amp;Host:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmTcpHostInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="flarmSerialPortLabel">
+            <property name="text">
+             <string>Po&amp;rt:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmSerialPortInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="flarmTcpPortLabel">
+            <property name="text">
+             <string>Po&amp;rt:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmTcpPortInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="flarmTcpHostInput"/>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="flarmSerialPortInput">
+            <property name="editable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QWidget" name="widget_7" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_7">
+             <property name="margin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="SkComboBox" name="flarmConnectionTypeInput"/>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_7">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>58</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QWidget" name="flarmSerialBaudRatePane" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_8">
+             <property name="margin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QComboBox" name="flarmSerialBaudRateInput">
+               <property name="editable">
+                <bool>true</bool>
+               </property>
+               <item>
+                <property name="text">
+                 <string>1200</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>2400</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>4800</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>9600</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>19200</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>38400</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>57600</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>115200</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_8">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>58</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QWidget" name="flarmTcpPortPane" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_9">
+             <property name="margin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QSpinBox" name="flarmTcpPortInput">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>65535</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_9">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>58</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="flarmFileNameLabel">
+            <property name="text">
+             <string>Fil&amp;e name:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmFileNameInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="flarmFileDelayLabel">
+            <property name="text">
+             <string>Dela&amp;y:</string>
+            </property>
+            <property name="buddy">
+             <cstring>flarmFileDelayInput</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QWidget" name="flarmFileDelayPane" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_11">
+             <property name="margin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QSpinBox" name="flarmFileDelayInput">
+               <property name="suffix">
+                <string> ms</string>
+               </property>
+               <property name="maximum">
+                <number>999999999</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_10">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="flarmNetEnabledCheckbox">
+         <property name="toolTip">
+          <string>&lt;html&gt;If enabled, the FlarmNet database may be used to automatically identify planes. Note that you will have to download a copy of the FlarmNet database for this to work.&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>Flarm&amp;Net enabled</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_2">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
          </property>
@@ -1084,13 +1439,6 @@ Directoryies can be absolute (e. g. /var/lib/startkladde/plugins or relative to 
  </customwidgets>
  <tabstops>
   <tabstop>tabWidget</tabstop>
-  <tabstop>dbTypeInput</tabstop>
-  <tabstop>mysqlServerInput</tabstop>
-  <tabstop>mysqlDefaultPortCheckBox</tabstop>
-  <tabstop>mysqlPortInput</tabstop>
-  <tabstop>mysqlUserInput</tabstop>
-  <tabstop>mysqlPasswordInput</tabstop>
-  <tabstop>mysqlDatabaseInput</tabstop>
   <tabstop>languageInput</tabstop>
   <tabstop>locationInput</tabstop>
   <tabstop>recordTowpilotCheckbox</tabstop>
@@ -1099,8 +1447,31 @@ Directoryies can be absolute (e. g. /var/lib/startkladde/plugins or relative to 
   <tabstop>protectLaunchMethodsCheckbox</tabstop>
   <tabstop>protectMergePeopleCheckbox</tabstop>
   <tabstop>protectFlightDatabaseCheckbox</tabstop>
+  <tabstop>protectViewMedicalsCheckbox</tabstop>
+  <tabstop>protectChangeMedicalsCheckbox</tabstop>
   <tabstop>enableDebugCheckbox</tabstop>
   <tabstop>diagCommandInput</tabstop>
+  <tabstop>dbTypeInput</tabstop>
+  <tabstop>mysqlServerInput</tabstop>
+  <tabstop>mysqlDefaultPortCheckBox</tabstop>
+  <tabstop>mysqlPortInput</tabstop>
+  <tabstop>mysqlUserInput</tabstop>
+  <tabstop>mysqlPasswordInput</tabstop>
+  <tabstop>mysqlDatabaseInput</tabstop>
+  <tabstop>flarmGroupBox</tabstop>
+  <tabstop>flarmConnectionTypeInput</tabstop>
+  <tabstop>flarmSerialPortInput</tabstop>
+  <tabstop>flarmSerialBaudRateInput</tabstop>
+  <tabstop>flarmTcpHostInput</tabstop>
+  <tabstop>flarmTcpPortInput</tabstop>
+  <tabstop>flarmFileNameInput</tabstop>
+  <tabstop>browseFlarmFileButton</tabstop>
+  <tabstop>flarmFileDelayInput</tabstop>
+  <tabstop>flarmAutoDeparturesCheckbox</tabstop>
+  <tabstop>flarmDataViewableCheckbox</tabstop>
+  <tabstop>flarmMapKmlFileNameInput</tabstop>
+  <tabstop>browseKmlFileButton</tabstop>
+  <tabstop>flarmNetEnabledCheckbox</tabstop>
   <tabstop>infoPluginList</tabstop>
   <tabstop>addInfoPluginButton</tabstop>
   <tabstop>removeInfoPluginButton</tabstop>
@@ -1135,8 +1506,8 @@ Directoryies can be absolute (e. g. /var/lib/startkladde/plugins or relative to 
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>91</x>
-     <y>573</y>
+     <x>109</x>
+     <y>535</y>
     </hint>
     <hint type="destinationlabel">
      <x>2</x>

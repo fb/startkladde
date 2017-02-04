@@ -35,26 +35,28 @@
 
 #include <QAction>
 #include <QPointer>
-#include <QPersistentModelIndex>
 
 #include "ui_MainWindow.h"
 
 #include "src/db/DbManager.h"
+#include "src/flarm/Flarm.h"
+#include "src/io/dataStream/DataStream.h" // For DataStream::State
 #include "src/gui/SkMainWindow.h"
+#include "src/model/FlightBase.h"
+#include "src/flarm/algorithms/FlightLookup.h" // For FlightLookup::Result
+#include "src/FlightReference.h"
+#include "src/time/EventTimeTracker.h"
 
 class QWidget;
 template<class T> class QList;
 class QModelIndex;
 
-class FlightSortFilterProxyModel;
 class InfoPlugin;
 class WeatherPlugin;
 class WeatherWidget;
 class WeatherDialog;
-class FlightModel;
-class FlightProxyList;
 class FlightWindow;
-template<class T> class ObjectListModel;
+class Flarm;
 
 /*
  * Notes:
@@ -68,7 +70,7 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		Q_OBJECT
 
 	public:
-		MainWindow (QWidget *parent);
+		MainWindow (QWidget *parent, DbManager &dbManager, Flarm &flarm);
 		~MainWindow ();
 
 	protected:
@@ -81,19 +83,11 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		void setupLabels ();
 		void setupLayout ();
 
-		// Actions
-		void refreshFlights ();
-
 		// Data
 		QDate getNewFlightDate ();
 		void setDisplayDate (QDate displayDate, bool force);
 		void setDisplayDateCurrent (bool force) { setDisplayDate (QDate::currentDate (), force); }
-		void updateFlight (const Flight &flight);
-
-		dbId currentFlightId (bool *isTowflight=NULL);
-		bool selectFlight (dbId id, bool selectTowflight, int column);
-		void sortCustom ();
-		void sortByColumn (int column);
+		bool updateFlight (const Flight &flight);
 
 		// Settings
 		void writeSettings ();
@@ -119,24 +113,47 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		void updateTimeLabels (const QDateTime &now=QDateTime::currentDateTime ());
 		void updateDatabaseStateLabel (DbManager::State state);
 
+		// Flarm
+		void interactiveUpdateFlarmId (dbId flightId);
+
 	signals:
 		void minuteChanged ();
 
 	protected slots:
 		void databaseError (int number, QString message);
 		void databaseStateChanged (DbManager::State state);
+		void flarm_stateChanged (Flarm::State::Type state);
+		void flarm_streamStateChanged (ManagedDataStream::State::Type state);
+
+		void updateFlarmStateEnabled (ManagedDataStream::State::Type state);
+		void updateFlarmStateDisabled ();
+		void updateFlarmState (Flarm::State::Type state);
+		void updateFlarmState ();
+
 		void readTimeout ();
 		void readResumed ();
+
+		// Actions
+		void refreshFlights ();
+
+		// Flight changes
+		void flightDeparted (dbId id);
+		void flightLanded (dbId id);
+		void towflightLanded (dbId id);
+		void touchAndGoPerformed (dbId id);
 
 		void migrationStarted () { oldLogVisible=ui.logDockWidget->isVisible (); ui.logDockWidget->setVisible (true); }
 		void migrationEnded () { ui.logDockWidget->setVisible (oldLogVisible); }
 
 		void settingsChanged ();
 
+		void flarmStreamLinkActivated (const QString &link);
+
 	private slots:
 		// Menu: Program
 		void on_actionSettings_triggered ();
 		void on_actionSetTime_triggered ();
+		void on_actionSetGPSTime_triggered ();
 		void on_actionQuit_triggered ();
 		void on_actionShutdown_triggered ();
 
@@ -149,13 +166,12 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		void on_actionEdit_triggered ();
 		void on_actionRepeat_triggered ();
 		void on_actionDelete_triggered ();
+		void on_identifyPlaneAction_triggered ();
+		void on_updateFlarmIdAction_triggered ();
 		void on_actionDisplayError_triggered ();
 
 		// Menu: View
-		void on_actionRefreshTable_triggered ();
 		//        void on_actionFont_triggered ();
-		void on_actionJumpToTow_triggered ();
-		void on_actionRestartPlugins_triggered ();
 		void on_actionShowVirtualKeyboard_triggered (bool checked);
 
 		// Menu: View - Font
@@ -167,7 +183,6 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		// on_actionHideFinished_triggered (bool checked) - connected to proxyModel
 		// on_actionAlwaysShowExternal_triggered (bool checked) - connected to proxyModel
 		// on_actionAlwaysShowErroneous_triggered (bool checked) - connected to proxyModel
-		void on_actionSort_triggered ();
 		void on_actionResizeColumns_triggered () { ui.flightTable->resizeColumnsToContents (); }
 
 
@@ -180,6 +195,13 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		void on_actionPlaneLogs_triggered ();
 		void on_actionPilotLogs_triggered ();
 		void on_actionLaunchMethodStatistics_triggered ();
+		
+		//Menu: Flarm
+		void on_actionFlarmPlaneList_triggered ();
+		void on_actionFlarmRadar_triggered ();
+		void on_flarmNetImportFileAction_triggered ();
+		void on_flarmNetImportWebAction_triggered ();
+		void on_actionFlarmNetWindow_triggered ();
 
 		// Menu: Database
 		void on_actionConnect_triggered ();
@@ -194,6 +216,14 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		void on_actionSegfault_triggered () { *(int *)NULL = 0; } // For testing the automatic restart mechanism
 		//		void on_actionPingServer_triggered ();
 		void on_actionTest_triggered ();
+		void on_injectFlarmDepartureAction_triggered ();
+		void on_injectFlarmLandingAction_triggered ();
+		void on_injectFlarmTouchAndGoAction_triggered ();
+		void on_lookupPlaneAction_triggered ();
+		void on_lookupFlightAction_triggered ();
+		void on_showNotificationAction_triggered ();
+		void on_decodeFlarmNetFileAction_triggered ();
+		void on_encodeFlarmNetFileAction_triggered ();
 
 		// Menu: Help
 		void on_actionInfo_triggered ();
@@ -202,8 +232,8 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		// Flight Table
 		void on_flightTable_customContextMenuRequested (const QPoint &pos);
 		void on_flightTable_doubleClicked (const QModelIndex &index);
-		void flightTable_buttonClicked (QPersistentModelIndex proxyIndex); // TODO const &, remove dependency
-		void flightTable_horizontalHeader_sectionClicked (int index) { sortByColumn (index); }
+		void on_flightTable_departButtonClicked (FlightReference flight);
+		void on_flightTable_landButtonClicked (FlightReference flight);
 
 		// Not connected pane
 		void on_connectButton_clicked () { on_actionConnect_triggered (); }
@@ -211,9 +241,14 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		// Flight manipulation
 		bool checkPlaneFlying (dbId id, const QString &description);
 		bool checkPersonFlying (dbId id, const QString &description);
-		void departFlight (dbId id);
-		void landFlight (dbId id);
-		void landTowflight (dbId id);
+		void interactiveDepartFlight (dbId id);
+		void interactiveLandFlight (dbId id);
+		void interactiveLandTowflight (dbId id);
+		void interactiveTouchAndGo (dbId id);
+		bool nonInteractiveDepartFlight (dbId flightId);
+		bool nonInteractiveLandFlight (dbId flightId);
+		bool nonInteractiveLandTowflight (dbId flightId);
+		bool nonInteractiveTouchAndGo (dbId flightId);
 		void departOrLand ();
 
 		// Plugins
@@ -234,8 +269,19 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		void logMessage (QString message);
 
 		void flightListChanged ();
+		
+		// Flarm
+		void flarmList_departureDetected  (const QString &flarmId);
+		void flarmList_landingDetected    (const QString &flarmId);
+		void flarmList_touchAndGoDetected (const QString &flarmId);
+		Flight createFlarmFlight (const FlightLookup::Result &lookupResult, const QString &flarmId);
+		QString determineFlarmId (dbId flightId, bool ofTowflight);
 
 	private:
+		DbManager &dbManager;
+		Cache &cache;
+		Flarm &flarm;
+
 		// TODO move to translation manager?
 		QTimer *translationTimer;
 
@@ -243,8 +289,6 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 
 		bool oldLogVisible;
 
-		DbManager dbManager;
-		Cache &cache;
 
 		QDate displayDate;
 		dbId preselectedLaunchMethod;
@@ -257,19 +301,13 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		WeatherPlugin *weatherPlugin;
 		QPointer<WeatherDialog> weatherDialog;
 
+		// The models involved in displaying the flight list
 		EntityList<Flight> *flightList;
-		FlightProxyList *proxyList;
-		FlightModel *flightModel;
-		ObjectListModel<Flight> *flightListModel;
-		FlightSortFilterProxyModel *proxyModel;
 
 		// The context menu is a property of the class rather than a local
 		// variable because it has to persist after the method opening it
 		// returns.
 		QMenu *contextMenu;
-
-		Qt::SortOrder sortOrder;
-		int sortColumn;
 
 		bool databaseActionsEnabled;
 		QString databaseOkText;
@@ -277,6 +315,26 @@ class MainWindow: public SkMainWindow<Ui::MainWindowClass>
 		/** Whether the font was set explicitly */
 		bool fontSet;
 
+		// Flarm
+//		TcpDataStream *flarmStream;
+//		NmeaDecoder *nmeaDecoder;
+//		GpsTracker *gpsTracker;
+//		FlarmList *flarmList;
+		QString debugFlarmId;
+//		bool flarmStreamValid;
+
+		// FIXME remove?
+//		Flarm::ConnectionState flarmConnectionState;
+		QString flarmConnectionError;
+
+		// TODO: This is only used for Flarm and should be integrated with the
+		// Flarm handling (e. g. receive signals from the flight controller).
+		// TODO this must be called whenever the respective action is
+		// performed, this stinks.
+		// TODO should also handle manual edits
+		EventTimeTracker departureTracker;
+		EventTimeTracker landingTracker;
+		EventTimeTracker touchAndGoTracker;
 };
 
-#endif // MAINWINDOW_H
+#endif

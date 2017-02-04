@@ -18,6 +18,7 @@ CacheWorker::CacheWorker (Cache &cache):
 	CONNECT (refreshPlanes        (Returner<void>            *, OperationMonitor *));
 	CONNECT (refreshFlights       (Returner<void>            *, OperationMonitor *));
 	CONNECT (refreshLaunchMethods (Returner<void>            *, OperationMonitor *));
+	CONNECT (refreshFlarmNetRecords(Returner<void>            *, OperationMonitor *));
 #undef CONNECT
 
 	moveToThread (&thread);
@@ -69,6 +70,11 @@ void CacheWorker::refreshFlights (Returner<void> &returner, OperationMonitor &mo
 	emit sig_refreshFlights (&returner, &monitor);
 }
 
+void CacheWorker::refreshFlarmNetRecords (Returner<void> &returner, OperationMonitor &monitor)
+{
+	emit sig_refreshFlarmNetRecords (&returner, &monitor);
+}
+
 void CacheWorker::refreshLaunchMethods (Returner<void> &returner, OperationMonitor &monitor)
 {
 	emit sig_refreshLaunchMethods (&returner, &monitor);
@@ -104,6 +110,11 @@ void CacheWorker::slot_refreshFlights (Returner<void> *returner, OperationMonito
 	returnVoidOrException (returner, cache.refreshFlights (monitor->interface ()));
 }
 
+void CacheWorker::slot_refreshFlarmNetRecords (Returner<void> *returner, OperationMonitor *monitor)
+{
+	returnVoidOrException (returner, cache.refreshFlarmNetRecords (monitor->interface ()));
+}
+
 void CacheWorker::slot_refreshLaunchMethods (Returner<void> *returner, OperationMonitor *monitor)
 {
 	returnVoidOrException (returner, cache.refreshLaunchMethods (monitor->interface ()));
@@ -129,6 +140,11 @@ template<> void CacheWorker::refreshObjects<Plane> (Returner<void> &returner, Op
 template<> void CacheWorker::refreshObjects<Flight> (Returner<void> &returner, OperationMonitor &monitor)
 {
 	refreshFlights (returner, monitor);
+}
+
+template<> void CacheWorker::refreshObjects<FlarmNetRecord> (Returner<void> &returner, OperationMonitor &monitor)
+{
+	refreshFlarmNetRecords (returner, monitor);
 }
 
 template<> void CacheWorker::refreshObjects<LaunchMethod> (Returner<void> &returner, OperationMonitor &monitor)

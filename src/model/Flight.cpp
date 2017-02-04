@@ -139,6 +139,9 @@ int Flight::countHappened (const QList<Flight> flights)
 // TODO: guarantee that any flight for which this is not true has an effectiveDate
 bool Flight::happened () const
 {
+	// TODO - we should probably switch on the mode instead of using the more
+	// abstract departsHere and landsHere methods to make it more explicit that
+	// this method is actually correct.
 	if (departsHere () && getDeparted ()) return true;
 	if (landsHere () && getLanded ()) return true;
 	return false;
@@ -151,6 +154,11 @@ bool Flight::finished () const
 		return getLanded ();
 	else
 		return (landsHere ()?getLanded ():getDeparted ());
+}
+
+bool Flight::isFlying () const
+{
+	return landsHere () && !getLanded ();
 }
 
 
@@ -231,7 +239,11 @@ bool Flight::isAirtow (Cache &cache) const
 {
 	try
 	{
-		if (idInvalid (getLaunchMethodId ())) return false;
+		if (!departsHere ())
+			return false;
+
+		if (idInvalid (getLaunchMethodId ()))
+			return false;
 
 		LaunchMethod launchMethod=cache.getObject<LaunchMethod> (getLaunchMethodId ());
 		return launchMethod.isAirtow ();
@@ -303,7 +315,9 @@ bool Flight::canLand (QString *reason) const
 
 bool Flight::canTouchngo (QString *reason) const
 {
-	// TODO only for flights of today
+	// TODO only for flights of today (also applies to other can... methods)
+	// TODO glider flights can only perform a touch-and-go if their launch
+	// method is an airtow
 
 	// Towflight
 	notPossibleIf (isTowflight (), qApp->translate ("Flight", "The flight is a towflight."));
@@ -384,6 +398,27 @@ bool Flight::performTouchngo (bool force)
 	return false;
 }
 
+bool Flight::departNow (const QString &location, bool force)
+{
+	if (!departNow (force)) return false;
+	setDepartureLocation (location);
+	return true;
+}
+
+bool Flight::landNow (const QString &location, bool force)
+{
+	if (!landNow (force)) return false;
+	setLandingLocation (location);
+	return true;
+}
+
+bool Flight::landTowflightNow (const QString &location, bool force)
+{
+	if (!landTowflightNow (force)) return false;
+	setTowflightLandingLocation (location);
+	return true;
+}
+
 
 // ***********
 // ** Times **
@@ -396,6 +431,7 @@ QDate Flight::effdatum (Qt::TimeSpec spec) const
 	return effectiveTime ().toTimeSpec (spec).date ();
 }
 
+// TODO is defaultDate used, or should we return an invalid date?
 QDate Flight::getEffectiveDate (Qt::TimeSpec spec, QDate defaultDate) const
 {
 	// TODO this assumes that every flight at least departs or lands here.
@@ -407,6 +443,12 @@ QDate Flight::getEffectiveDate (Qt::TimeSpec spec, QDate defaultDate) const
 
 	return defaultDate;
 }
+
+bool Flight::isCurrent () const
+{
+	return getEffectiveDate (Qt::LocalTime, QDate ())==QDate::currentDate ();
+}
+
 
 QDateTime Flight::effectiveTime () const
 {
@@ -779,7 +821,7 @@ QString Flight::toString () const
 		"launchMethod=%7, towplane=%8, towpilot=%9, towFlightMode=%10, "
 		"departureTime=%11, landingTime=%12, towflightLandingTime=%13, "
 		"departureLocation='%14', landingLocation='%15', towflightLandingLocation='%16', "
-		"numLandings=%17, comment='%18', accountingNote='%19'")
+		"numLandings=%17, comment='%18', accountingNote='%19', flarmId='%20'")
 
 		.arg (getId ())
 		.arg (getPlaneId ())
@@ -804,6 +846,7 @@ QString Flight::toString () const
 		.arg (getNumLandings ())
 		.arg (getComments ())
 		.arg (getAccountingNotes ())
+		.arg (getFlarmId ())
 		;
 }
 
@@ -870,7 +913,19 @@ Flight Flight::makeTowflight (dbId theTowplaneId, dbId towLaunchMethod) const
 	towflight.setLanded (getTowflightLanded ());
 	towflight.setTowflightLanded (false);
 
+	// The towflight has no Flarm ID of its own - we cannot currently record
+	// whether it was created automatically.
+	towflight.setFlarmId (QString ());
+
 	return towflight;
+}
+
+Flight Flight::makeTowflight (Cache &cache) const
+{
+	// Determine the launch method of the towplane
+	dbId towLaunchMethod=cache.getLaunchMethodByType (LaunchMethod::typeSelf);
+
+	return makeTowflight (effectiveTowplaneId (cache), towLaunchMethod);
 }
 
 QList<Flight> Flight::makeTowflights (const QList<Flight> &flights, Cache &cache)
@@ -936,6 +991,7 @@ QString Flight::selectColumnList ()
 		",towflight_landing_time,towflight_mode,towflight_landing_location,towplane_id" // 4 Σ23
 		",accounting_notes,comments" // 2 Σ25
 		",towpilot_id,towpilot_last_name,towpilot_first_name" // 3 Σ28
+		",flarm_id" // 1 Σ29
 		);
 }
 
@@ -979,6 +1035,8 @@ Flight Flight::createFromResult (const Result &result)
 	f.setTowpilotLastName   (result.value (26).toString   ());
 	f.setTowpilotFirstName  (result.value (27).toString   ());
 
+	f.setFlarmId (result.value (28).toString ());
+
 	return f;
 }
 
@@ -991,6 +1049,7 @@ QString Flight::insertColumnList ()
 		",towflight_landing_time,towflight_mode,towflight_landing_location,towplane_id" // 4 Σ22
 		",accounting_notes,comments" // 2 Σ24
 		",towpilot_id,towpilot_last_name,towpilot_first_name" // 3 Σ27
+		",flarm_id" // 1 Σ28
 		);
 }
 
@@ -1003,6 +1062,7 @@ QString Flight::insertPlaceholderList ()
 		",?,?,?,?"
 		",?,?"
 		",?,?,?"
+		",?"
 		);
 }
 
@@ -1040,6 +1100,8 @@ void Flight::bindValues (Query &q) const
 	q.bind (getTowpilotId ());
 	q.bind (getTowpilotLastName ());
 	q.bind (getTowpilotFirstName ());
+
+	q.bind (getFlarmId ());
 }
 
 QList<Flight> Flight::createListFromResult (Result &result)
@@ -1250,6 +1312,10 @@ void Flight::databaseChanged (const DbEvent &event) const
 				event.getId ()==getTowplaneId ())
 				dataChanged ();
 			break;
+		case DbEvent::tableFlarmNetRecords:
+			// Nothing
+			break;
 		// No default - compiler warning on unhandled case
 	}
 }
+

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>825</width>
-    <height>657</height>
+    <height>531</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -108,6 +108,13 @@
               </widget>
              </item>
              <item row="7" column="0">
+              <widget class="SkLabel" name="flarmStateCaptionLabel">
+               <property name="text">
+                <string>Flarm connection:</string>
+               </property>
+              </widget>
+             </item>
+             <item row="8" column="0">
               <widget class="SkLabel" name="powerStateCaptionLabel">
                <property name="text">
                 <string>Power supply:</string>
@@ -121,7 +128,7 @@
                </property>
               </widget>
              </item>
-             <item row="8" column="0">
+             <item row="9" column="0">
               <spacer name="verticalSpacer">
                <property name="orientation">
                 <enum>Qt::Vertical</enum>
@@ -166,6 +173,13 @@
               </widget>
              </item>
              <item row="7" column="1">
+              <widget class="SkLabel" name="flarmStateLabel">
+               <property name="text">
+                <string notr="true" extracomment="No translatable, set programmatically">-</string>
+               </property>
+              </widget>
+             </item>
+             <item row="8" column="1">
               <widget class="AcpiWidget" name="powerStateLabel">
                <property name="text">
                 <string notr="true" extracomment="No translatable, set programmatically">-</string>
@@ -229,7 +243,7 @@
      </widget>
     </item>
     <item>
-     <widget class="SkTableView" name="flightTable">
+     <widget class="FlightTableView" name="flightTable">
       <property name="contextMenuPolicy">
        <enum>Qt::CustomContextMenu</enum>
       </property>
@@ -357,7 +371,7 @@
      <x>0</x>
      <y>0</y>
      <width>825</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuProgram">
@@ -366,6 +380,7 @@
     </property>
     <addaction name="actionSettings"/>
     <addaction name="actionSetTime"/>
+    <addaction name="actionSetGPSTime"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
     <addaction name="actionShutdown"/>
@@ -384,6 +399,9 @@
     <addaction name="actionEdit"/>
     <addaction name="actionRepeat"/>
     <addaction name="actionDelete"/>
+    <addaction name="separator"/>
+    <addaction name="identifyPlaneAction"/>
+    <addaction name="updateFlarmIdAction"/>
     <addaction name="separator"/>
     <addaction name="actionDisplayError"/>
    </widget>
@@ -453,7 +471,7 @@
    </widget>
    <widget class="QMenu" name="menuDebug">
     <property name="title">
-     <string>De&amp;bug</string>
+     <string>D&amp;ebug</string>
     </property>
     <addaction name="actionSegfault"/>
     <addaction name="actionPingServer"/>
@@ -461,6 +479,18 @@
     <addaction name="separator"/>
     <addaction name="changeLanguageAction"/>
     <addaction name="timerBasedLanguageChangeAction"/>
+    <addaction name="separator"/>
+    <addaction name="injectFlarmDepartureAction"/>
+    <addaction name="injectFlarmLandingAction"/>
+    <addaction name="injectFlarmTouchAndGoAction"/>
+    <addaction name="separator"/>
+    <addaction name="lookupPlaneAction"/>
+    <addaction name="lookupFlightAction"/>
+    <addaction name="separator"/>
+    <addaction name="showNotificationAction"/>
+    <addaction name="separator"/>
+    <addaction name="decodeFlarmNetFileAction"/>
+    <addaction name="encodeFlarmNetFileAction"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -469,11 +499,25 @@
     <addaction name="actionInfo"/>
     <addaction name="actionNetworkDiagnostics"/>
    </widget>
+   <widget class="QMenu" name="menuFlarm">
+    <property name="title">
+     <string>Fla&amp;rm</string>
+    </property>
+    <addaction name="openFlarmAction"/>
+    <addaction name="separator"/>
+    <addaction name="actionFlarmRadar"/>
+    <addaction name="actionFlarmPlaneList"/>
+    <addaction name="separator"/>
+    <addaction name="actionFlarmNetWindow"/>
+    <addaction name="flarmNetImportFileAction"/>
+    <addaction name="flarmNetImportWebAction"/>
+   </widget>
    <addaction name="menuProgram"/>
    <addaction name="menuFlight"/>
    <addaction name="menuView"/>
    <addaction name="menuStatistics"/>
    <addaction name="menuDatabase"/>
+   <addaction name="menuFlarm"/>
    <addaction name="menuDebug"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -846,7 +890,7 @@
   </action>
   <action name="changeLanguageAction">
    <property name="text">
-    <string>Change &amp;language</string>
+    <string>Change lan&amp;guage</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+B</string>
@@ -857,10 +901,127 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>&amp;Timer-based language change</string>
+    <string>Timer-&amp;based language change</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+V</string>
+   </property>
+  </action>
+  <action name="actionSetGPSTime">
+   <property name="text">
+    <string>Set &amp;GPS time...</string>
+   </property>
+   <property name="toolTip">
+    <string>Set GPS time from Flarm data</string>
+   </property>
+  </action>
+  <action name="actionFlarmPlaneList">
+   <property name="text">
+    <string>Plane &amp;list...</string>
+   </property>
+  </action>
+  <action name="actionFlarmRadar">
+   <property name="text">
+    <string>Flarm &amp;radar...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="flarmNetImportFileAction">
+   <property name="text">
+    <string>Import FlarmNet database from &amp;file...</string>
+   </property>
+  </action>
+  <action name="actionFlarmNetWindow">
+   <property name="text">
+    <string>Flarm&amp;Net overview...</string>
+   </property>
+  </action>
+  <action name="connectFlarmAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Connect</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
+   </property>
+  </action>
+  <action name="injectFlarmDepartureAction">
+   <property name="text">
+    <string>Inject Flarm &amp;departure</string>
+   </property>
+  </action>
+  <action name="injectFlarmLandingAction">
+   <property name="text">
+    <string>Inject Flarm &amp;landing</string>
+   </property>
+  </action>
+  <action name="injectFlarmTouchAndGoAction">
+   <property name="text">
+    <string>Inject Flarm &amp;touch and go</string>
+   </property>
+  </action>
+  <action name="flarmNetImportWebAction">
+   <property name="text">
+    <string>Download FlarmNet database from &amp;web...</string>
+   </property>
+  </action>
+  <action name="lookupPlaneAction">
+   <property name="text">
+    <string>Look up &amp;plane</string>
+   </property>
+  </action>
+  <action name="lookupFlightAction">
+   <property name="text">
+    <string>Look up &amp;flight</string>
+   </property>
+  </action>
+  <action name="identifyPlaneAction">
+   <property name="text">
+    <string>&amp;Identify plane</string>
+   </property>
+   <property name="toolTip">
+    <string>&amp;Identify plane</string>
+   </property>
+  </action>
+  <action name="updateFlarmIdAction">
+   <property name="text">
+    <string>&amp;Update Flarm ID</string>
+   </property>
+  </action>
+  <action name="showNotificationAction">
+   <property name="text">
+    <string>Sho&amp;w notification for current flight</string>
+   </property>
+   <property name="toolTip">
+    <string>Show notification</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
+  </action>
+  <action name="decodeFlarmNetFileAction">
+   <property name="text">
+    <string>Dec&amp;ode FlarmNet file</string>
+   </property>
+  </action>
+  <action name="encodeFlarmNetFileAction">
+   <property name="text">
+    <string>E&amp;ncode FlarmNet file</string>
+   </property>
+  </action>
+  <action name="openFlarmAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Op&amp;en</string>
    </property>
   </action>
  </widget>
@@ -871,14 +1032,14 @@
    <header>src/gui/widgets/SkLabel.h</header>
   </customwidget>
   <customwidget>
-   <class>SkTableView</class>
-   <extends>QTableView</extends>
-   <header>src/gui/widgets/SkTableView.h</header>
-  </customwidget>
-  <customwidget>
    <class>AcpiWidget</class>
    <extends>QLabel</extends>
    <header>src/gui/widgets/AcpiWidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>FlightTableView</class>
+   <extends>QTableView</extends>
+   <header>src/gui/widgets/FlightTableView.h</header>
   </customwidget>
  </customwidgets>
  <resources>

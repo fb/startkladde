@@ -28,10 +28,11 @@
  * is necessary to use a template class to call retranslateUi by duck
  * typing.
  *
- * The call to ui.setupUi cannot be performed by SkMainWindow constructor because
- * the automatically connected slots (on_object_signal) will not be connected.
- * This is probably because in any base class constructor, virtual methods of
- * the derived class can not be used yet (cf. [1]).
+ * Implementations must call ui.setupUi (this) in their constructor. This cannot
+ * be done by the SkMainWindow constructor because the automatically connected
+ * slots (on_object_signal) will not be connected. This is probably because in
+ * any base class constructor, virtual methods of the derived class can not be
+ * used yet (cf. [1]).
  *
  * [1] http://www.parashift.com/c++-faq-lite/strange-inheritance.html#faq-23.5
  */

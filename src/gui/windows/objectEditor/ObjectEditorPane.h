@@ -15,6 +15,7 @@
 #include "src/db/dbId.h"
 #include "src/gui/windows/objectEditor/ObjectEditorWindowBase.h" // Required for ObjectEditorWindowBase::Mode
 
+class DbManager;
 class Cache;
 
 /**
@@ -48,13 +49,14 @@ class ObjectEditorPaneBase: public QWidget
 		// Types
 		class AbortedException: public std::exception {};
 
-		ObjectEditorPaneBase (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent=NULL);
+		ObjectEditorPaneBase (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent=NULL);
 		virtual ~ObjectEditorPaneBase ();
 
 	protected:
 		virtual void errorCheck (const QString &problem, QWidget *widget);
 		virtual void requiredField (const QString &value, QWidget *widget, const QString &problem);
 
+		DbManager &dbManager;
 		Cache &cache;
 		ObjectEditorWindowBase::Mode mode;
 };
@@ -79,12 +81,12 @@ class ObjectEditorPaneBase: public QWidget
 template<class T> class ObjectEditorPane: public ObjectEditorPaneBase
 {
 	public:
-		ObjectEditorPane (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent=NULL);
+		ObjectEditorPane (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent=NULL);
 		virtual ~ObjectEditorPane ();
 
 		virtual void setObject (const T &object);
-
-		virtual T determineObject ();
+		// The API stinks
+		virtual T determineObject (bool performChecks);
 
 		/**
 		 * Sets the "name" fields (e. g. last and first name for people, or
@@ -96,7 +98,7 @@ template<class T> class ObjectEditorPane: public ObjectEditorPaneBase
 		virtual void setNameObject (const T &nameObject) { (void)nameObject; }
 
 		/** @brief Implementations of ObjectEditorPane should specialize this template method */
-		static ObjectEditorPane<T> *create (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent=NULL, ObjectEditorPaneData *paneData=NULL);
+		static ObjectEditorPane<T> *create (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent=NULL, ObjectEditorPaneData *paneData=NULL);
 
 		// Make a copy
 		T getOriginalObject () { return originalObject; }
@@ -112,7 +114,7 @@ template<class T> class ObjectEditorPane: public ObjectEditorPaneBase
 		 */
 		// TODO we should either return the object (and throw AbortedException on
 		// failure) or return success as boolen.
-		virtual void fieldsToObject (T &object)=0;
+		virtual void fieldsToObject (T &object, bool performChecks)=0;
 
 		T originalObject;
 };
@@ -121,8 +123,8 @@ template<class T> class ObjectEditorPane: public ObjectEditorPaneBase
 // ** ObjectEditorPane implementation **
 // *************************************
 
-template<class T> ObjectEditorPane<T>::ObjectEditorPane (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent):
-	ObjectEditorPaneBase (mode, cache, parent)
+template<class T> ObjectEditorPane<T>::ObjectEditorPane (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent):
+	ObjectEditorPaneBase (mode, dbManager, parent)
 {
 }
 
@@ -149,11 +151,11 @@ template<class T> void ObjectEditorPane<T>::setObject (const T &object)
  *
  * @return the created object
  */
-template<class T> T ObjectEditorPane<T>::determineObject ()
+template<class T> T ObjectEditorPane<T>::determineObject (bool performChecks)
 {
 	T object (originalObject);
 
-	fieldsToObject (object);
+	fieldsToObject (object, performChecks);
 
 	return object;
 }

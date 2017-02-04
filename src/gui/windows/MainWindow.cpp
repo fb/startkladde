@@ -5,6 +5,10 @@
  *   - when double-clicking in the empty area of the flight table, create a new
  *     flight
  *   - when double-clicking the displayed date label, change the displayed date
+ *   - [non]interactive[Depart|Land] should probably accept a FlightReference
+ *     instead of a flight ID, so we can get rid of
+ *     [non]interactiveLandTowflight (really? Note that departing a towflight
+ *     is the same as departing the flight).
  */
 //	assert (isGuiThread ());
 
@@ -19,10 +23,8 @@
 #include <QTimer>
 #include <QGridLayout>
 #include <QProgressDialog>
-#include <QHeaderView>
 #include <QInputDialog>
 #include <QList>
-#include <QModelIndex>
 #include <QStatusBar>
 #include <QCloseEvent>
 #include <QScrollBar>
@@ -46,9 +48,6 @@
 #include "src/model/Plane.h"
 #include "src/model/Flight.h"
 #include "src/model/Person.h"
-#include "src/model/flightList/FlightModel.h"
-#include "src/model/flightList/FlightProxyList.h"
-#include "src/model/flightList/FlightSortFilterProxyModel.h"
 #include "src/model/objectList/AutomaticEntityList.h" // TODO remove some?
 #include "src/model/objectList/EntityList.h"
 #include "src/model/objectList/ObjectListModel.h"
@@ -58,6 +57,11 @@
 #include "src/statistics/LaunchMethodStatistics.h"
 #include "src/statistics/PilotLog.h"
 #include "src/statistics/PlaneLog.h"
+#include "src/flarm/FlarmList.h"
+#include "src/nmea/GpsTracker.h"
+#include "src/flarm/FlarmWindow.h"
+#include "src/flarm/flarmNet/FlarmNetHandler.h"
+#include "src/flarm/flarmNet/FlarmNetWindow.h"
 #include "src/gui/dialogs.h"
 #include "src/logging/messages.h"
 #include "src/util/qString.h"
@@ -67,44 +71,76 @@
 #include "src/db/cache/Cache.h"
 #include "src/text.h"
 #include "src/i18n/TranslationManager.h"
+#include "src/flarm/algorithms/PlaneLookup.h"
+#include "src/flarm/algorithms/FlightLookup.h"
+#include "src/flarm/algorithms/PlaneIdentification.h"
+#include "src/flarm/algorithms/FlarmIdUpdate.h"
+#include "src/gui/windows/input/ChoiceDialog.h"
+#include "src/flarm/Flarm.h"
+#include "src/flarm/flarmNet/FlarmNetHandler.h"
 #include "src/version.h"
 
 template <class T> class MutableObjectList;
+
+const int notificationDisplayTime=4000; // Milliseconds
+const QTime ignoreDuplicateFlarmEventInterval (0, 0, 10);
 
 // ******************
 // ** Construction **
 // ******************
 
-MainWindow::MainWindow (QWidget *parent):
+MainWindow::MainWindow (QWidget *parent, DbManager &dbManager, Flarm &flarm):
 	SkMainWindow<Ui::MainWindowClass> (parent),
-	oldLogVisible (false),
-	dbManager (Settings::instance ().databaseInfo),
+	dbManager (dbManager),
 	cache (dbManager.getCache ()),
+	flarm (flarm),
+	oldLogVisible (false),
 	preselectedLaunchMethod (invalidId),
 	createFlightWindow (NULL), editFlightWindow (NULL),
 	weatherWidget (NULL), weatherPlugin (NULL),
-	weatherDialog (NULL), flightList (new EntityList<Flight> (this)),
+	weatherDialog (NULL),
+	flightList (new EntityList<Flight> (this)),
 	contextMenu (new QMenu (this)),
 	databaseActionsEnabled (false),
-	fontSet (false)
+	fontSet (false),
+	debugFlarmId ("ABC")
 {
 	ui.setupUi (this);
 
-	flightModel = new FlightModel (dbManager.getCache ());
-	proxyList=new FlightProxyList (dbManager.getCache (), *flightList, this); // TODO never deleted
-	flightListModel = new ObjectListModel<Flight> (proxyList, false, flightModel, true, this);
+	ui.flightTable->init (&dbManager);
 
-	proxyModel = new FlightSortFilterProxyModel (dbManager.getCache (), this);
-	proxyModel->setSourceModel (flightListModel);
+	// ***** Flarm
+	connect (
+		&flarm, SIGNAL (streamStateChanged       (ManagedDataStream::State::Type)),
+		this  , SLOT   (flarm_streamStateChanged (ManagedDataStream::State::Type)));
+	connect (
+		&flarm, SIGNAL (stateChanged       (Flarm::State::Type)),
+		this  , SLOT   (flarm_stateChanged (Flarm::State::Type)));
+	// This will cause a Flarm connection state change
+	flarm.open ();
+	ui.openFlarmAction->setChecked (flarm.isOpen ());
 
-	proxyModel->setSortCaseSensitivity (Qt::CaseInsensitive);
-	proxyModel->setDynamicSortFilter (true);
+	// TODO this action should only be enabled if the Flarm connection type is
+	// not "none"
+	connect (ui.openFlarmAction, SIGNAL (toggled (bool)), &flarm, SLOT (setOpen (bool)));
+
+	connect (flarm.flarmList (), SIGNAL (departureDetected  (const QString &)), this, SLOT (flarmList_departureDetected  (const QString &)));
+	connect (flarm.flarmList (), SIGNAL (landingDetected    (const QString &)), this, SLOT (flarmList_landingDetected    (const QString &)));
+	connect (flarm.flarmList (), SIGNAL (touchAndGoDetected (const QString &)), this, SLOT (flarmList_touchAndGoDetected (const QString &)));
+
+	connect (ui.flarmStateLabel, SIGNAL (linkActivated (const QString &)), this, SLOT (flarmStreamLinkActivated (const QString &)));
+
+	// TODO should not call any non-trivial methods from the constructor
+	updateFlarmState ();
 
 	// Menu bar
 	logAction = ui.logDockWidget->toggleViewAction ();
 	ui.menuDatabase->addSeparator ();
 	ui.menuDatabase->addAction (logAction);
 
+	connect (this, SIGNAL (minuteChanged ()), ui.flightTable, SLOT (minuteChanged ()));
+
+	connect (ui.actionSort, SIGNAL (triggered ()), ui.flightTable, SLOT (setCustomSorting ()));
 
 	connect (&Settings::instance (), SIGNAL (changed ()), this, SLOT (settingsChanged ()));
 	readSettings ();
@@ -141,14 +177,13 @@ MainWindow::MainWindow (QWidget *parent):
 	// TODO to showEvent?
 	QTimer::singleShot (0, this, SLOT (on_actionConnect_triggered ()));
 
-	setDisplayDateCurrent (true);
-
 	ui.logDockWidget->setVisible (false);
 
 	ui.actionShutdown->setVisible (Settings::instance ().enableShutdown);
 
 #if defined (Q_OS_WIN32) || defined (Q_OS_WIN64)
 	ui.actionSetTime->setVisible (false);
+	ui.actionSetGPSTime->setVisible (false);
 	bool virtualKeyboardEnabled=false;
 #else
 	bool virtualKeyboardEnabled = (
@@ -173,32 +208,28 @@ MainWindow::MainWindow (QWidget *parent):
 	// Flight table
 	ui.flightTable->setAutoResizeRows (true);
 	ui.flightTable->setColoredSelectionEnabled (true);
-	ui.flightTable->setModel (proxyModel);
+	ui.flightTable->setModel (flightList);
 	ui.flightTable->resizeColumnsToContents (); // Default sizes
 
 	readColumnWidths (); // Stored sizes
 
-	QObject::connect (
-		ui.flightTable, SIGNAL (buttonClicked (QPersistentModelIndex)),
-		this, SLOT (flightTable_buttonClicked (QPersistentModelIndex))
-		);
-	QObject::connect (
-		ui.flightTable->horizontalHeader (), SIGNAL (sectionClicked (int)),
-		this, SLOT (flightTable_horizontalHeader_sectionClicked (int))
-		);
+	connect (ui.actionHideFinished, SIGNAL (toggled (bool)), ui.flightTable, SLOT (setHideFinishedFlights (bool)));
+	connect (ui.actionAlwaysShowExternal, SIGNAL (toggled (bool)), ui.flightTable, SLOT (setAlwaysShowExternalFlights (bool)));
+	connect (ui.actionAlwaysShowErroneous, SIGNAL (toggled (bool)), ui.flightTable, SLOT (setAlwaysShowErroneousFlights (bool)));
+	connect (ui.actionRefreshTable, SIGNAL (triggered ()), this, SLOT (refreshFlights ()));
 
-	QObject::connect (ui.actionHideFinished, SIGNAL (toggled (bool)), proxyModel, SLOT (setHideFinishedFlights (bool)));
-	QObject::connect (ui.actionAlwaysShowExternal, SIGNAL (toggled (bool)), proxyModel, SLOT (setAlwaysShowExternalFlights (bool)));
-	QObject::connect (ui.actionAlwaysShowErroneous, SIGNAL (toggled (bool)), proxyModel, SLOT (setAlwaysShowErroneousFlights (bool)));
+	connect (ui.actionRefreshTable, SIGNAL (triggered ()), this, SLOT (refreshFlights ()));
+	connect (ui.actionJumpToTow, SIGNAL (triggered ()), ui.flightTable, SLOT (interactiveJumpToTowflight ()));
+	connect (ui.actionRestartPlugins, SIGNAL (triggered ()), this, SLOT (restartPlugins ()));
 
 	// Initialize all properties of the filter proxy model
-	proxyModel->setHideFinishedFlights (ui.actionHideFinished->isChecked ());
-	proxyModel->setAlwaysShowExternalFlights (ui.actionAlwaysShowExternal->isChecked ());
-	proxyModel->setAlwaysShowErroneousFlights (ui.actionAlwaysShowErroneous->isChecked ());
-
-	proxyModel->setCustomSorting (true);
-
+	ui.flightTable->setHideFinishedFlights (ui.actionHideFinished->isChecked ());
+	ui.flightTable->setAlwaysShowExternalFlights (ui.actionAlwaysShowExternal->isChecked ());
+	ui.flightTable->setAlwaysShowErroneousFlights (ui.actionAlwaysShowErroneous->isChecked ());
 	ui.flightTable->setFocus ();
+
+	setDisplayDateCurrent (true);
+
 
 	// Database
 	connect (&dbManager.getInterface (), SIGNAL (databaseError (int, QString)), this, SLOT (databaseError (int, QString)));
@@ -209,11 +240,12 @@ MainWindow::MainWindow (QWidget *parent):
 
 	connect (&dbManager, SIGNAL (stateChanged (DbManager::State)), this, SLOT (databaseStateChanged (DbManager::State)));
 	databaseStateChanged (dbManager.getState ());
+
 }
 
 MainWindow::~MainWindow ()
 {
-	// Hide the window to avoid trouble[tm].
+	// Hack: Hide the window to avoid trouble[tm].
 	// If we don't make the window invisible here, it will be done in the
 	// QWidget destructor. Then the flight table will access its model, which
 	// will in turn access the cache, which has already been deleted.
@@ -221,6 +253,7 @@ MainWindow::~MainWindow ()
 	// failure", but worse things can happen.
 	setVisible (false);
 	// QObjects will be deleted automatically
+	// TODO only if this is their parent
 	// TODO make sure this also applies to flightList
 
 	terminatePlugins ();
@@ -428,17 +461,19 @@ void MainWindow::restartPlugins ()
 
 bool MainWindow::confirmAndExit (int returnCode, QString title, QString text)
 {
-	if (yesNoQuestion (this, title, text))
-	{
+	(void)title;
+	(void)text;
+//	if (yesNoQuestion (this, title, text))
+//	{
 		closeDatabase ();
 		writeSettings ();
 		qApp->exit (returnCode);
 		return true;
-	}
-	else
-	{
-		return false;
-	}
+//	}
+//	else
+//	{
+//		return false;
+//	}
 }
 
 void MainWindow::closeEvent (QCloseEvent *event)
@@ -476,12 +511,10 @@ void MainWindow::writeSettings ()
 	}
 
 	settings.beginGroup (notr ("flightTable"));
-	ui.flightTable->writeColumnWidths (settings, *flightModel);
+	ui.flightTable->writeColumnWidths (settings);
 	settings.endGroup ();
 
 	settings.endGroup ();
-
-	settings.sync ();
 }
 
 void MainWindow::readColumnWidths ()
@@ -490,7 +523,7 @@ void MainWindow::readColumnWidths ()
 
 	settings.beginGroup (notr ("gui"));
     settings.beginGroup (notr ("flightTable"));
-    ui.flightTable->readColumnWidths (settings, *flightModel);
+    ui.flightTable->readColumnWidths (settings);
     settings.endGroup ();
     settings.endGroup ();
 }
@@ -547,6 +580,20 @@ void MainWindow::settingsChanged ()
 	ui.timerBasedLanguageChangeAction->setEnabled (s.enableDebug);
 
 	ui.actionNetworkDiagnostics     ->setVisible (!isBlank (s.diagCommand));
+	
+	// Flarm
+	// Note that we enable the flarmPlaneList and flarmRadar actions even if
+	// s.flarmDataViewable is off, so we can show a message to the user as to
+	// why it's disabled.
+	ui.actionFlarmPlaneList  ->setEnabled (s.flarmEnabled);
+	ui.actionFlarmRadar	     ->setEnabled (s.flarmEnabled);
+	ui.flarmStateCaptionLabel->setEnabled (s.flarmEnabled);
+	ui.flarmStateLabel       ->setEnabled (s.flarmEnabled);
+	// Also disabled the FlarmNet menu entries to indicate to the user that
+	// FlarmNet is not used.
+	ui.actionFlarmNetWindow    ->setEnabled (s.flarmNetEnabled);
+	ui.flarmNetImportFileAction->setEnabled (s.flarmNetEnabled);
+	ui.flarmNetImportWebAction ->setEnabled (s.flarmNetEnabled);
 
 	// Plugins
 	setupPlugins ();
@@ -593,10 +640,10 @@ void MainWindow::refreshFlights ()
 		{
 			// The displayed date is today's date - display today's flights and
 			// prepared flights
-			flights  = dbManager.getCache ().getFlightsToday ().getList ();
-			flights += dbManager.getCache ().getPreparedFlights ().getList ();
+			flights  = dbManager.getCache ().getFlightsToday    (false).getList ();
+			flights += dbManager.getCache ().getPreparedFlights (false).getList ();
 
-			proxyModel->setShowPreparedFlights (true);
+			ui.flightTable->setShowPreparedFlights (true);
 		}
 		else
 		{
@@ -604,21 +651,19 @@ void MainWindow::refreshFlights ()
 			// cache's "other" date
 			flights=dbManager.getCache ().getFlightsOther ().getList ();
 
-			proxyModel->setShowPreparedFlights (false);
+			ui.flightTable->setShowPreparedFlights (false);
 		}
 	}
 
 	updateDisplayDateLabel (today);
 
-	bool towflightSelected=false;
-	dbId selectedId=currentFlightId (&towflightSelected);
+	FlightReference selectedFlight=ui.flightTable->selectedFlightReference ();
 	int column=ui.flightTable->currentIndex ().column ();
 
 	flightList->replaceList (flights);
-	sortCustom ();
+	ui.flightTable->setCustomSorting ();
 
-	if (idValid (selectedId))
-		selectFlight (selectedId, towflightSelected, column);
+	ui.flightTable->selectFlight (selectedFlight, column);
 
 	// TODO should be done automatically
 	// ui.flightTable->resizeColumnsToContents ();
@@ -634,89 +679,6 @@ void MainWindow::refreshFlights ()
 
 	// TODO
 	//updateInfo ();
-}
-
-dbId MainWindow::currentFlightId (bool *isTowflight)
-{
-	// Get the currently selected index from the table; it refers to the
-	// proxy model
-	QModelIndex proxyIndex = ui.flightTable->currentIndex ();
-
-	// Map the index from the proxy model to the flight list model
-	QModelIndex flightListModelIndex = proxyModel->mapToSource (proxyIndex);
-
-	// If there is not selection, return an invalid ID
-	if (!flightListModelIndex.isValid ()) return invalidId;
-
-	// Get the flight from the model
-	const Flight &flight = flightListModel->at (flightListModelIndex);
-
-	if (isTowflight) (*isTowflight) = flight.isTowflight ();
-	return flight.getId ();
-}
-
-bool MainWindow::selectFlight (dbId id, bool selectTowflight, int column)
-{
-//	int flightListIndex=flightList->findById (id);
-
-	// Find the flight or towflight with that ID in the flight proxy list
-	int proxyListIndex=proxyList->modelIndexFor (id, selectTowflight);
-	if (proxyListIndex<0) return false;
-
-	// Create the index in the flight list model
-	QModelIndex flightListModelIndex=flightListModel->index (proxyListIndex, column);
-	if (!flightListModelIndex.isValid ()) return false;
-
-	// Map the index from the flight list model to the proxy model
-	QModelIndex proxyIndex=proxyModel->mapFromSource (flightListModelIndex);
-	if (!proxyIndex.isValid ()) return false;
-
-	// Select it
-	ui.flightTable->setCurrentIndex (proxyIndex);
-
-	return true;
-
-	// flightList
-	// proxyList       = FlightProxyList            (flightList)
-	// flightListModel = ObjectListModel            (proxyList)
-	// proxyModel      = FlightSortFilterProxyModel (flightListModel)
-}
-
-void MainWindow::sortCustom ()
-{
-	// Use custom sorting
-	proxyModel->sortCustom ();
-
-	// Show the sort status in the header view
-	ui.flightTable->setSortingEnabled (false); // Make sure it is off
-	ui.flightTable->horizontalHeader ()->setSortIndicatorShown (false);
-}
-
-void MainWindow::sortByColumn (int column)
-{
-	// Determine the new sorting order: when custom sorting was in effect or the
-	// sorting column changed, sort ascending; otherwise, toggle the sorting
-	// order
-	if (proxyModel->getCustomSorting ())
-		sortOrder=Qt::AscendingOrder; // custom sorting was in effect
-	else if (column!=sortColumn)
-		sortOrder=Qt::AscendingOrder; // different column
-	else if (sortOrder==Qt::AscendingOrder)
-		sortOrder=Qt::DescendingOrder; // toggle ascending->descending
-	else
-		sortOrder=Qt::AscendingOrder; // toggle any->ascending
-
-	// Set the new sorting column
-	sortColumn=column;
-
-	// Sort the proxy model
-	proxyModel->setCustomSorting (false);
-	proxyModel->sort (sortColumn, sortOrder);
-
-	// Show the sort status in the header view
-	QHeaderView *header=ui.flightTable->horizontalHeader ();
-	header->setSortIndicatorShown (true);
-	header->setSortIndicator (sortColumn, sortOrder);
 }
 
 /**
@@ -749,7 +711,7 @@ void MainWindow::flightListChanged ()
 /*
  * Notes:
  *   - for create, repeat and edit: the flight editor may be modeless
- *     and control may return immediately (even for modal dialogs). The
+ *     and control may return immediately (even for modal dialogs).
  *     The table entry will be updated when the flight editor updates the
  *     database.
  *
@@ -760,16 +722,21 @@ void MainWindow::flightListChanged ()
  *
  */
 
-void MainWindow::updateFlight (const Flight &flight)
+bool MainWindow::updateFlight (const Flight &flight)
 {
 	try
 	{
 		dbManager.updateObject (flight, this);
+		return true;
 	}
 	catch (OperationCanceledException &e)
 	{
 		// TODO the cache may now be inconsistent
+
+		return false;
 	}
+
+	return false;
 }
 
 bool MainWindow::checkPlaneFlying (dbId id, const QString &description)
@@ -799,7 +766,7 @@ bool MainWindow::checkPersonFlying (dbId id, const QString &description)
 	return true;
 }
 
-void MainWindow::departFlight (dbId id)
+void MainWindow::interactiveDepartFlight (dbId id)
 {
 	// TODO display message
 	if (idInvalid (id)) return;
@@ -830,7 +797,8 @@ void MainWindow::departFlight (dbId id)
 				if (!checkPersonFlying (flight.getTowpilotId (), flight.towpilotDescription ())) return;
 
 			flight.departNow ();
-			updateFlight (flight);
+			if (updateFlight (flight))
+				flightDeparted (id);
 		}
 		else
 		{
@@ -843,7 +811,7 @@ void MainWindow::departFlight (dbId id)
 	}
 }
 
-void MainWindow::landFlight (dbId id)
+void MainWindow::interactiveLandFlight (dbId id)
 {
 	// TODO display message
 	if (idInvalid (id)) return;
@@ -856,7 +824,8 @@ void MainWindow::landFlight (dbId id)
 		if (flight.canLand (&reason))
 		{
 			flight.landNow ();
-			updateFlight (flight);
+			if (updateFlight (flight))
+				flightLanded (id);
 		}
 		else
 		{
@@ -869,76 +838,8 @@ void MainWindow::landFlight (dbId id)
 	}
 }
 
-void MainWindow::landTowflight (dbId id)
+void MainWindow::interactiveTouchAndGo (dbId id)
 {
-	// TODO display message
-	if (idInvalid (id)) return;
-
-	try
-	{
-		Flight flight = dbManager.getCache ().getObject<Flight> (id);
-		QString reason;
-
-		if (flight.canTowflightLand (&reason))
-		{
-			flight.landTowflightNow ();
-			updateFlight (flight);
-		}
-		else
-		{
-			showWarning (tr ("Landing not possible"), reason, this);
-		}
-	}
-	catch (Cache::NotFoundException &ex)
-	{
-		log_error (qnotr ("Flight %1 not found in MainWindow::landTowFlight").arg (ex.id));
-	}
-}
-
-void MainWindow::on_actionNew_triggered ()
-{
-	delete createFlightWindow; // noop if NULL
-	createFlightWindow=FlightWindow::createFlight (this, dbManager, getNewFlightDate (), preselectedLaunchMethod);
-	createFlightWindow->setAttribute (Qt::WA_DeleteOnClose, true);
-
-}
-
-void MainWindow::on_actionLaunchMethodPreselection_triggered ()
-{
-	LaunchMethodSelectionWindow::select (cache, preselectedLaunchMethod, this);
-}
-
-void MainWindow::on_actionDepart_triggered ()
-{
-	// This will check canDepart
-	departFlight (currentFlightId ());
-}
-
-void MainWindow::on_actionLand_triggered ()
-{
-	bool isTowflight = false;
-	dbId id = currentFlightId (&isTowflight);
-
-	if (isTowflight)
-		// This will check canLand
-		landTowflight (id);
-	else
-		landFlight (id);
-}
-
-void MainWindow::on_actionTouchngo_triggered ()
-{
-	bool isTowflight=false;
-	dbId id = currentFlightId (&isTowflight);
-
-	if (isTowflight)
-	{
-		showWarning (
-			tr ("Touch-and-go not possible"),
-			tr ("The selected flight is a towflight. Towflights cannot perform a touch-and-go."),
-			this);
-	}
-
 	// TODO display message
 	if (idInvalid (id)) return;
 
@@ -953,7 +854,8 @@ void MainWindow::on_actionTouchngo_triggered ()
 		if (flight.canTouchngo (&reason))
 		{
 			flight.performTouchngo ();
-			updateFlight (flight);
+			if (updateFlight (flight))
+				touchAndGoPerformed (id);
 		}
 		else
 		{
@@ -966,30 +868,242 @@ void MainWindow::on_actionTouchngo_triggered ()
 	}
 }
 
-void MainWindow::departOrLand ()
+void MainWindow::interactiveLandTowflight (dbId id)
 {
-	bool isTowflight=false;
-	dbId id = currentFlightId (&isTowflight);
-
+	// TODO display message
 	if (idInvalid (id)) return;
 
 	try
 	{
 		Flight flight = dbManager.getCache ().getObject<Flight> (id);
+		QString reason;
 
-		bool flightChanged=true;
+		if (flight.canTowflightLand (&reason))
+		{
+			flight.landTowflightNow ();
+			if (updateFlight (flight))
+				towflightLanded (id);
+		}
+		else
+		{
+			showWarning (tr ("Landing not possible"), reason, this);
+		}
+	}
+	catch (Cache::NotFoundException &ex)
+	{
+		log_error (qnotr ("Flight %1 not found in MainWindow::landTowFlight").arg (ex.id));
+	}
+}
+
+// TODO for all nonInteractiveXxx methods, there should be a way to report
+// errors (departure not possible...) or failed plausibility checks (person
+// still flying...)
+bool MainWindow::nonInteractiveDepartFlight (dbId flightId)
+{
+	try
+	{
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightId);
+		QString reason;
+		if (flight.canDepart (&reason))
+		{
+			flight.departNow ();
+			if (updateFlight (flight))
+				flightDeparted (flightId);
+			return true;
+		}
+		else
+		{
+			std::cout << qnotr ("Departure not possible: %1").arg (reason) << std::endl;
+			return false;
+		}
+	}
+	catch (Cache::NotFoundException &ex)
+	{
+		log_error (qnotr ("Flight %1 not found in MainWindow::nonInteractiveDepartFlight").arg (ex.id));
+	}
+
+	return false;
+}
+
+bool MainWindow::nonInteractiveLandFlight (dbId flightId)
+{
+	try
+	{
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightId);
+		QString reason;
+		if (flight.canLand (&reason))
+		{
+			flight.landNow ();
+			if (updateFlight (flight))
+			{
+				flightLanded (flightId);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			std::cout << qnotr ("Landing not possible: %1").arg (reason) << std::endl;
+			return false;
+		}
+	}
+	catch (Cache::NotFoundException &ex)
+	{
+		log_error (qnotr ("Flight %1 not found in MainWindow::nonInteractiveLandFlight").arg (ex.id));
+	}
+
+	return false;
+}
+
+// Note that we can't call nonInteractiveLandFlight on the towflight
+bool MainWindow::nonInteractiveLandTowflight (dbId flightId)
+{
+	try
+	{
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightId);
+		QString reason;
+		if (flight.canTowflightLand (&reason))
+		{
+			flight.landTowflightNow ();
+			if (updateFlight (flight))
+			{
+				towflightLanded (flightId);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			std::cout << qnotr ("Landing towflight not possible: %1").arg (reason) << std::endl;
+			return false;
+		}
+	}
+	catch (Cache::NotFoundException &ex)
+	{
+		log_error (qnotr ("Flight %1 not found in MainWindow::nonInteractiveLandTowflight").arg (ex.id));
+	}
+
+	return false;
+}
+
+bool MainWindow::nonInteractiveTouchAndGo (dbId flightId)
+{
+	try
+	{
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightId);
+		QString reason;
+		if (flight.canTouchngo (&reason))
+		{
+			flight.performTouchngo ();
+			if (updateFlight (flight))
+			{
+				touchAndGoPerformed (flightId);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			std::cout << qnotr ("Touch and go not possible: ") << reason << std::endl;
+			return false;
+		}
+	}
+	catch (Cache::NotFoundException &ex)
+	{
+		log_error (qnotr ("Flight %1 not found in MainWindow::nonInteractiveTouchAndGo").arg (ex.id));
+	}
+
+	return false;
+}
+
+void MainWindow::on_actionNew_triggered ()
+{
+	// Delete the old flight window (if it exists)
+	createFlightWindow=FlightWindow::createFlight (this, dbManager, getNewFlightDate (), preselectedLaunchMethod);
+
+	connect (createFlightWindow, SIGNAL (flightDeparted (dbId)), this, SLOT (flightDeparted (dbId)));
+	connect (createFlightWindow, SIGNAL (flightLanded   (dbId)), this, SLOT (flightLanded   (dbId)));
+	createFlightWindow->setAttribute (Qt::WA_DeleteOnClose, true);
+
+}
+
+void MainWindow::on_actionLaunchMethodPreselection_triggered ()
+{
+	LaunchMethodSelectionWindow::select (cache, preselectedLaunchMethod, this);
+}
+
+void MainWindow::on_actionDepart_triggered ()
+{
+	// This will check canDepart
+	interactiveDepartFlight (ui.flightTable->selectedFlightReference ().id ());
+}
+
+void MainWindow::on_actionLand_triggered ()
+{
+	FlightReference flight=ui.flightTable->selectedFlightReference ();
+
+	if (flight.towflight ())
+		// This will check canLand
+		interactiveLandTowflight (flight.id ());
+	else
+		// This will check canLand
+		interactiveLandFlight (flight.id ());
+}
+
+void MainWindow::on_actionTouchngo_triggered ()
+{
+	FlightReference flight=ui.flightTable->selectedFlightReference ();
+
+	if (flight.towflight ())
+	{
+		showWarning (
+			tr ("Touch-and-go not possible"),
+			tr ("The selected flight is a towflight. Towflights cannot perform a touch-and-go."),
+			this);
+	}
+	else
+		interactiveTouchAndGo (flight.id ());
+}
+
+void MainWindow::departOrLand ()
+{
+	FlightReference flightRef=ui.flightTable->selectedFlightReference ();
+
+	if (!flightRef.isValid ())
+		return;
+
+	try
+	{
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightRef.id ());
 
 		if (flight.canDepart ())
+		{
 			flight.departNow ();
-		else if (isTowflight && flight.canTowflightLand ())
+			if (updateFlight (flight))
+				flightDeparted (flightRef.id ());
+		}
+		else if (flightRef.towflight () && flight.canTowflightLand ())
+		{
 			flight.landTowflightNow ();
-		else if (!isTowflight && flight.canLand ())
+			if (updateFlight (flight))
+				towflightLanded (flightRef.id ());
+		}
+		else if (!flightRef.towflight () && flight.canLand ())
+		{
 			flight.landNow ();
-		else
-			flightChanged=false;
+			if (updateFlight (flight))
+				flightLanded (flightRef.id ());
+		}
 
-		if (flightChanged)
-			updateFlight (flight);
 	}
 	catch (Cache::NotFoundException &ex)
 	{
@@ -999,15 +1113,16 @@ void MainWindow::departOrLand ()
 
 void MainWindow::on_actionEdit_triggered ()
 {
-	dbId id = currentFlightId ();
+	FlightReference flightRef=ui.flightTable->selectedFlightReference ();
 
-	if (idInvalid (id)) return;
+	if (!flightRef.isValid ())
+		return;
 
 	try
 	{
-		Flight flight = dbManager.getCache ().getObject<Flight> (id);
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightRef.id ());
 
-		if (editFlightWindow && editFlightWindow->getEditedId ()==id)
+		if (editFlightWindow && editFlightWindow->getEditedId ()==flightRef.id ())
 		{
 			// The flight is already being edited
 
@@ -1036,14 +1151,13 @@ void MainWindow::on_actionEdit_triggered ()
 
 void MainWindow::on_actionRepeat_triggered ()
 {
-	bool isTowflight = false;
-	dbId id = currentFlightId (&isTowflight);
+	FlightReference flightRef=ui.flightTable->selectedFlightReference ();
 
 	// TODO display message
-	if (idInvalid (id))
+	if (!flightRef.isValid ())
 		return;
 
-	else if (isTowflight)
+	else if (flightRef.towflight ())
 	{
 		showWarning (tr ("Replicating not possible"),
 			tr ("The selected flight is a towflight. Towflights cannot be replicated."),
@@ -1053,41 +1167,95 @@ void MainWindow::on_actionRepeat_triggered ()
 
 	try
 	{
-		Flight flight = dbManager.getCache ().getObject<Flight> (id);
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightRef.id ());
 		delete createFlightWindow; // noop if NULL
 		createFlightWindow=FlightWindow::repeatFlight (this, dbManager, flight, getNewFlightDate (), preselectedLaunchMethod);
 		createFlightWindow->setAttribute (Qt::WA_DeleteOnClose, true);
 	}
 	catch (Cache::NotFoundException &ex)
 	{
-		log_error (qnotr ("Flight %1 not found in MainWindow::on_actionRepeat_triggered").arg (id));
+		log_error (qnotr ("Flight %1 not found in MainWindow::on_actionRepeat_triggered").arg (flightRef.id ()));
 	}
 }
 
 void MainWindow::on_actionDelete_triggered ()
 {
-	bool isTowflight = false;
-	dbId id = currentFlightId (&isTowflight);
+	FlightReference flight=ui.flightTable->selectedFlightReference ();
 
-	if (idInvalid (id))
-	// TODO display message
-	return;
+	if (!flight.isValid ())
+		// TODO display message
+		return;
 
 	if (!yesNoQuestion (this, tr ("Delete flight?"), tr ("Really delete flight?"))) return;
 
-	if (isTowflight) if (!yesNoQuestion (this, tr ("Delete glider flight?"),
-			tr ("The selected flight is a towflight. Really delete the corresponding glider flight?"))) return;
+	if (flight.towflight ())
+		if (!yesNoQuestion (this, tr ("Delete glider flight?"),
+			tr ("The selected flight is a towflight. Really delete the corresponding glider flight?")))
+			return;
 
 	try
 	{
 		// Get the current index
 		QModelIndex previousIndex=ui.flightTable->currentIndex ();
-		dbManager.deleteObject<Flight> (id, this);
+		dbManager.deleteObject<Flight> (flight.id (), this);
 		ui.flightTable->setCurrentIndex (previousIndex); // Handles deletion of last item correctly
 	}
 	catch (OperationCanceledException &)
 	{
 		// TODO the cache may now be inconsistent
+	}
+}
+
+void MainWindow::on_identifyPlaneAction_triggered ()
+{
+	try
+	{
+		// Retrieve the flight from the database
+		FlightReference flightRef=ui.flightTable->selectedFlightReference ();
+		if (!flightRef.isValid ())
+			return;
+
+		Flight flight=cache.getObject<Flight> (flightRef.id ());
+
+		// Try to identify the plane, letting the user choose or create the
+		// plane if necessary.
+		PlaneIdentification planeIdentification (dbManager, this);
+		dbId newPlaneId=planeIdentification.interactiveIdentifyPlane (flight, true);
+
+		// If a plane was found and is different, update the flight
+		if (idValid (newPlaneId) && newPlaneId!=flight.getPlaneId ())
+		{
+			flight.setPlaneId (newPlaneId);
+			updateFlight (flight);
+		}
+	}
+	catch (Cache::NotFoundException &ex)
+	{
+	}
+}
+
+void MainWindow::on_updateFlarmIdAction_triggered ()
+{
+	try
+	{
+		FlightReference flightRef=ui.flightTable->selectedFlightReference ();
+		if (!flightRef.isValid ())
+			return;
+
+		if (flightRef.towflight ())
+		{
+			showWarning ("Cannot update Flarm ID", "The selected flight is a "
+				"towflight. The Flarm ID cannot be updated for towflights.", this);
+			return;
+		}
+
+		Flight flight=dbManager.getCache ().getObject<Flight> (flightRef.id ());
+
+		FlarmIdUpdate flarmIdUpdate (dbManager, this);
+		flarmIdUpdate.interactiveUpdateFlarmId (flight, true, flight.getPlaneId ());
+	}
+	catch (Cache::NotFoundException &)
+	{
 	}
 }
 
@@ -1098,10 +1266,9 @@ void MainWindow::on_actionDisplayError_triggered ()
 	// TODO: this method is quite complex and duplicates code found
 	// elsewhere - the towplane generation should be simplified
 
-	bool isTowflight;
-	dbId id = currentFlightId (&isTowflight);
+	FlightReference flightRef=ui.flightTable->selectedFlightReference ();
 
-	if (idInvalid (id))
+	if (!flightRef.isValid ())
 	{
 		showWarning (tr ("No flight selected"), tr ("No flight is selected."), this);
 		return;
@@ -1109,7 +1276,7 @@ void MainWindow::on_actionDisplayError_triggered ()
 
 	try
 	{
-		Flight flight = dbManager.getCache ().getObject<Flight> (id);
+		Flight flight = dbManager.getCache ().getObject<Flight> (flightRef.id ());
 
 		Plane *plane=dbManager.getCache ().getNewObject<Plane> (flight.getPlaneId ());
 		LaunchMethod *launchMethod=dbManager.getCache ().getNewObject<LaunchMethod> (flight.getLaunchMethodId ());
@@ -1127,10 +1294,12 @@ void MainWindow::on_actionDisplayError_triggered ()
 				towplane=dbManager.getCache ().getNewObject<Plane> (towplaneId);
 		}
 
-		if (isTowflight)
+		if (flightRef.towflight ())
 		{
 			dbId towLaunchMethod=dbManager.getCache ().getLaunchMethodByType (LaunchMethod::typeSelf);
 
+			// TODO should use Flight::makeTowflight (cache), probably won't
+			// need the stuff above
 			flight=flight.makeTowflight (towplaneId, towLaunchMethod);
 
 			delete launchMethod;
@@ -1150,14 +1319,14 @@ void MainWindow::on_actionDisplayError_triggered ()
 
 		if (error)
 		{
-			if (isTowflight)
+			if (flightRef.towflight ())
 				showWarning (tr ("Towflight has errors"), tr ("First error of the towflight: %1").arg (errorText), this);
 			else
 				showWarning (tr ("Flight has errors"), tr ("First error of the flight: %1").arg (errorText), this);
 		}
 		else
 		{
-			if (isTowflight)
+			if (flightRef.towflight ())
 				showWarning (tr ("Towflight has no errors"), tr ("The towflight has no errors."), this);
 			else
 				showWarning (tr ("Flight has no errors"), tr ("The flight has no errors."), this);
@@ -1264,46 +1433,6 @@ void MainWindow::on_actionRefreshAll_triggered ()
 	refreshFlights ();
 }
 
-void MainWindow::on_actionRefreshTable_triggered ()
-{
-	refreshFlights ();
-}
-
-void MainWindow::on_actionJumpToTow_triggered ()
-{
-	// Get the currently selected index in the ObjectListModel
-	QModelIndex currentIndex=proxyModel->mapToSource (ui.flightTable->currentIndex ());
-
-	if (!currentIndex.isValid ())
-	{
-		showWarning (tr ("No flight selected"), tr ("No flight is selected."), this);
-		return;
-	}
-
-	// Get the towref from the FlightProxyList. The rows of the ObjectListModel
-	// correspond to those of its source, the FlightProxyList.
-	int towref=proxyList->findTowref (currentIndex.row ());
-
-	// TODO better error message
-	if (towref<0)
-	{
-		QString text=tr ("Either the selected flight is neither a towflight nor a towed flight, or it has not departed yet.");
-		showWarning (tr ("No towflight"), text, this);
-		return;
-	}
-
-	// Generate the index in the ObjectListModel
-	QModelIndex towrefIndex=currentIndex.sibling (towref, currentIndex.column ());
-
-	// Jump to the flight
-	ui.flightTable->setCurrentIndex (proxyModel->mapFromSource (towrefIndex));
-}
-
-void MainWindow::on_actionRestartPlugins_triggered ()
-{
-	restartPlugins ();
-}
-
 // **********
 // ** Help **
 // **********
@@ -1406,6 +1535,9 @@ void MainWindow::on_flightTable_customContextMenuRequested (const QPoint &pos)
 		contextMenu->addAction (ui.actionRepeat);
 		contextMenu->addAction (ui.actionDelete);
 		contextMenu->addSeparator ();
+		contextMenu->addAction (ui.identifyPlaneAction);
+		contextMenu->addAction (ui.updateFlarmIdAction);
+		contextMenu->addSeparator ();
 		contextMenu->addAction (ui.actionJumpToTow);
 	}
 	else
@@ -1416,37 +1548,19 @@ void MainWindow::on_flightTable_customContextMenuRequested (const QPoint &pos)
 	contextMenu->popup (ui.flightTable->mapToGlobal (pos), 0);
 }
 
-void MainWindow::flightTable_buttonClicked (QPersistentModelIndex proxyIndex)
+void MainWindow::on_flightTable_departButtonClicked (FlightReference flight)
 {
-	if (!proxyIndex.isValid ())
-	{
-		log_error (notr ("A button with invalid persistent index was clicked in MainWindow::flightTable_buttonClicked"));
-		return;
-	}
-
-	QModelIndex flightListIndex = proxyModel->mapToSource (proxyIndex);
-	const Flight &flight = flightListModel->at (flightListIndex);
-
-//	std::cout << qnotr ("Button clicked at proxy index (%1,%2), flight list index is (%3,%4), flight ID is %5")
-//		.arg (proxyIndex.row()).arg (proxyIndex.column())
-//		.arg (flightListIndex.row()).arg (flightListIndex.column())
-//		.arg (flight.id)
-//		<< std::endl;
-
-	if (flightListIndex.column () == flightModel->departButtonColumn ())
-		departFlight (flight.getId ());
-	else if (flightListIndex.column () == flightModel->landButtonColumn ())
-	{
-		if (flight.isTowflight ())
-			landTowflight (flight.getId ());
-		else
-			landFlight (flight.getId ());
-	}
-	else
-		std::cerr << notr ("Unhandled button column in MainWindow::flightTable_buttonClicked") << std::endl;
+	if (flight.isValid ())
+		interactiveDepartFlight (flight.id ());
 }
 
-#include "src/gui/widgets/TableButton.h"
+void MainWindow::on_flightTable_landButtonClicked (FlightReference flight)
+{
+	if (flight.towflight ())
+		interactiveLandTowflight (flight.id ());
+	else
+		interactiveLandFlight (flight.id ());
+}
 
 void MainWindow::updateTimeLabels (const QDateTime &now)
 {
@@ -1465,19 +1579,7 @@ void MainWindow::timeTimer_timeout ()
 
 	// Some things are done on the beginning of a new minute.
 	if (second<lastSecond)
-	{
-		QModelIndex oldIndex=ui.flightTable->currentIndex ();
-		QPersistentModelIndex focusWidgetIndex=ui.flightTable->findButton (
-			dynamic_cast<TableButton *> (QApplication::focusWidget ()));
-
-		int durationColumn=flightModel->durationColumn ();
-		flightListModel->columnChanged (durationColumn);
-
-		ui.flightTable->setCurrentIndex (oldIndex);
-		ui.flightTable->focusWidgetAt (focusWidgetIndex);
-
 		emit minuteChanged ();
-	}
 
 	lastSecond=second;
 }
@@ -1512,15 +1614,6 @@ void MainWindow::weatherWidget_doubleClicked ()
 			}
 		}
 	}
-}
-
-// ********************
-// ** View - Flights **
-// ********************
-
-void MainWindow::on_actionSort_triggered ()
-{
-	sortCustom ();
 }
 
 // **********
@@ -1613,17 +1706,18 @@ void MainWindow::on_actionSetDisplayDate_triggered ()
 // Note that these strings must be defined ouside of the functions because the
 // window may have to access them (for retranslation) after the function
 // returns.
-const char *ntr_planeLogBooksTitle=QT_TRANSLATE_NOOP ("StatisticsWindow", "Plane logbooks");
-const char *ntr_pilotLogBooksTitle=QT_TRANSLATE_NOOP ("StatisticsWindow", "Pilot logbooks");
+const char *ntr_planeLogBooksTitle       =QT_TRANSLATE_NOOP ("StatisticsWindow", "Plane logbooks");
+const char *ntr_pilotLogBooksTitle       =QT_TRANSLATE_NOOP ("StatisticsWindow", "Pilot logbooks");
 const char *ntr_launchMethodOverviewTitle=QT_TRANSLATE_NOOP ("StatisticsWindow", "Launch method overview");
+const char *ntr_flarmPlaneListTitle      =QT_TRANSLATE_NOOP ("StatisticsWindow", "Flarm overview");
 
 void MainWindow::on_actionPlaneLogs_triggered ()
 {
 	// Get the list of flights and add the towflights
 	QList<Flight> flights=flightList->getList ();
-	flights+=Flight::makeTowflights (flights, dbManager.getCache ());
+	flights+=Flight::makeTowflights (flights, cache);
 
-	PlaneLog *planeLog = PlaneLog::createNew (flights, dbManager.getCache ());
+	PlaneLog *planeLog = PlaneLog::createNew (flights, cache);
 	StatisticsWindow::display (planeLog, true, ntr_planeLogBooksTitle, this);
 }
 
@@ -1631,10 +1725,10 @@ void MainWindow::on_actionPilotLogs_triggered ()
 {
 	// Get the list of flights and add the towflights
 	QList<Flight> flights=flightList->getList ();
-	flights+=Flight::makeTowflights (flights, dbManager.getCache ());
+	flights+=Flight::makeTowflights (flights, cache);
 
 	// Create the pilots' log
-	PilotLog *pilotLog = PilotLog::createNew (flights, dbManager.getCache ());
+	PilotLog *pilotLog = PilotLog::createNew (flights, cache);
 
 	// Display the pilots' log
 	StatisticsWindow::display (pilotLog, true, ntr_pilotLogBooksTitle, this);
@@ -1642,9 +1736,75 @@ void MainWindow::on_actionPilotLogs_triggered ()
 
 void MainWindow::on_actionLaunchMethodStatistics_triggered ()
 {
-	LaunchMethodStatistics *stats = LaunchMethodStatistics::createNew (proxyList->getList (), dbManager.getCache ());
+	// Get the list of flights and add the towflights
+	QList<Flight> flights=flightList->getList ();
+	flights+=Flight::makeTowflights (flights, cache);
+
+	// Create the launch method statistics
+	LaunchMethodStatistics *stats=LaunchMethodStatistics::createNew (flights, cache);
+
+	// Display the launch method statistics
 	StatisticsWindow::display (stats, true, ntr_launchMethodOverviewTitle, this);
 }
+
+
+// ***********
+// ** Flarm **
+// ***********
+
+void MainWindow::on_actionFlarmPlaneList_triggered ()
+{
+	if (!Settings::instance ().flarmDataViewable)
+	{
+		QString text=tr ("Viewing Flarm data is disabled. It can be enabled in"
+			" the configuration.");
+		showWarning ("Flarm plane list disabled", text, this);
+		return;
+	}
+
+	FlarmWindow* dialog = new FlarmWindow (this);
+	dialog->setGpsTracker (flarm.gpsTracker ());
+	dialog->setFlarmList (flarm.flarmList ());
+	dialog->setAttribute (Qt::WA_DeleteOnClose, true);
+	dialog->showPlaneList ();
+}
+
+void MainWindow::on_actionFlarmRadar_triggered ()
+{
+	if (!Settings::instance ().flarmDataViewable)
+	{
+		QString text=tr ("Viewing Flarm data is disabled. It can be enabled in"
+			" the configuration.");
+		showWarning ("Flarm radar disabled", text, this);
+		return;
+	}
+
+	FlarmWindow* dialog = new FlarmWindow (this);
+	dialog->setGpsTracker (flarm.gpsTracker ());
+	dialog->setFlarmList (flarm.flarmList ());
+	dialog->setAttribute (Qt::WA_DeleteOnClose, true);
+	dialog->showFlarmMap ();
+}
+
+void MainWindow::on_actionFlarmNetWindow_triggered ()
+{
+	FlarmNetWindow *dialog = new FlarmNetWindow (dbManager, this);
+	dialog->setAttribute (Qt::WA_DeleteOnClose, true);
+	dialog->show ();
+}
+
+void MainWindow::on_flarmNetImportFileAction_triggered ()
+{
+	FlarmNetHandler handler (dbManager, this);
+	handler.interactiveImportFromFile ();
+}
+
+void MainWindow::on_flarmNetImportWebAction_triggered ()
+{
+	FlarmNetHandler handler (dbManager, this);
+	handler.interactiveImportFromWeb ();
+}
+
 
 // **************
 // ** Database **
@@ -1827,6 +1987,121 @@ void MainWindow::databaseStateChanged (DbManager::State state)
 	}
 }
 
+QString linkTo (const QString &target, const QString &text)
+{
+	return qnotr ("<a href=\"%1\">%2</a>").arg (target).arg (text);
+}
+
+void MainWindow::updateFlarmStateEnabled (ManagedDataStream::State::Type state)
+{
+	QString text;
+
+	QString linkTarget=notr ("flarmStreamErrorDetails");
+
+	switch (state)
+	{
+		case ManagedDataStream::State::noConnection:
+			text=tr ("No connection");
+			break;
+		case ManagedDataStream::State::closed:
+			text=tr ("Closed");
+			break;
+		case ManagedDataStream::State::opening:
+			// TODO distinguish:
+			//   * connection failed - reconnecting (with link)
+			//   * connection lost - reconnecting (with link)
+			//   * connecting
+			text=tr ("Connecting");
+			break;
+		case ManagedDataStream::State::open:
+			text=tr ("Connected");
+			break;
+		case ManagedDataStream::State::ok:
+			text=tr ("OK");
+			break;
+		case ManagedDataStream::State::timeout:
+			text=tr ("No data");
+			break;
+		case ManagedDataStream::State::error:
+		{
+			// TODO distinguish between "connection failed" and "connection lost"
+			text=linkTo (linkTarget, tr ("Error"));
+
+			QTime reconnectTime=flarm.getManagedStream ()->getReconnectTime ();
+			if (reconnectTime.isValid ())
+			{
+				QTime now=QTime::currentTime ();
+				int msToReconnect=now.msecsTo (reconnectTime);
+				int sToReconnect=(msToReconnect/1000)+1;
+				text+=", "+tr ("reconnect in %1 s").arg (sToReconnect);
+
+				// Update the status again in 200 ms to update the remaining
+				// time. This will continue until the state is no longer
+				// ManagedDataStream::State::error, or until the reconnect time
+				// reported by the managed data stream is invalid.
+				QTimer::singleShot (200, this, SLOT (updateFlarmStreamState ()));
+			}
+			flarmConnectionError=flarm.getManagedStream ()->getErrorMessage ();
+		} break;
+		// no default
+	}
+
+	ui.flarmStateLabel->setText (text);
+}
+
+void MainWindow::updateFlarmStateDisabled ()
+{
+	ui.flarmStateLabel->setText (tr ("Disabled"));
+}
+
+void MainWindow::updateFlarmState (Flarm::State::Type state)
+{
+	switch (state)
+	{
+		case Flarm::State::active:
+			updateFlarmStateEnabled (flarm.getManagedStream ()->getState ());
+			break;
+		case Flarm::State::disabled:
+			updateFlarmStateDisabled ();
+			break;
+	}
+}
+
+void MainWindow::updateFlarmState ()
+{
+	updateFlarmState (flarm.state ());
+}
+
+void MainWindow::flarm_stateChanged (Flarm::State::Type state)
+{
+	updateFlarmState (state);
+}
+
+void MainWindow::flarm_streamStateChanged (ManagedDataStream::State::Type state)
+{
+	// FIXME state mix-up, there should only be a single Flarm state
+	updateFlarmStateEnabled (state);
+}
+
+void MainWindow::flarmStreamLinkActivated (const QString &link)
+{
+	(void)link;
+
+	QString text;
+
+	// TODO distinguish between "connection failed" and "connection lost":
+	//   - "the connection was terminated"
+	//   - "the connection could not be established"
+
+	if (flarmConnectionError.isEmpty ())
+		text=tr ("The connection encountered an error and will be reopened automatically.");
+	else
+		text=tr ("The connection encountered an error: %1. The connection will be reopened automatically.").arg (flarmConnectionError);
+
+	QString title=tr ("Flarm connection error");
+	QMessageBox::information (this, title, text);
+}
+
 
 // ***************************
 // ** Connection monitoring **
@@ -1898,7 +2173,7 @@ void MainWindow::closeDatabase ()
 void MainWindow::on_actionSettings_triggered ()
 {
 	SettingsWindow w (this);
-	w.setModal (true); // TODO non-model and auto delete
+	w.setModal (true); // TODO non-modal and auto delete
 	w.exec ();
 
 
@@ -1931,9 +2206,7 @@ void MainWindow::on_actionSetTime_triggered ()
 
 	if (DateTimeInputDialog::editDateTime (this, &date, &time, tr ("Set system time")))
 	{
-		QString timeString=qnotr ("%1-%2-%3 %4:%5:%6")
-			.arg (date.year ()).arg (date.month ()).arg (date.day ())
-			.arg (time.hour ()).arg (time.minute ()).arg (time.second ());
+                QString timeString (QDateTime(date, time).toString (notr("yyyy-MM-dd hh:mm:ss")));
 
 		// sudo -n: non-interactive (don't prompt for password)
 		// sudoers entry: deffi ALL=NOPASSWD: /bin/date
@@ -1954,6 +2227,60 @@ void MainWindow::on_actionSetTime_triggered ()
 				this);
 		}
 	}
+}
+
+void MainWindow::on_actionSetGPSTime_triggered ()
+{
+        qDebug () << "MainWindow::on_actionSetGPSTime_triggered";
+        // FIXME
+//        if (!flarm.isDataValid ())
+//        {
+//        	QMessageBox::warning (this, tr ("No GPS signal"),
+//        			tr ("Flarm does not send data"));
+//        	return;
+//        }
+        QDateTime current (QDateTime::currentDateTimeUtc ());
+        QDateTime currentGPSdateTime (flarm.getGpsTime ());
+        qDebug () << "slot_setGPSdateTime: " << currentGPSdateTime.toString (notr("hh:mm:ss dd.MM.yyyy"));
+        qDebug () << "currentTime: " << current.toString (notr("hh:mm:ss dd.MM.yyyy"));
+        int diff = currentGPSdateTime.secsTo(current);
+        if (abs (diff) > 0) {
+                if (QMessageBox::question(this, tr("Time difference"), 
+                        tr("<p>System time: %1</p>"
+                        "<p>GPS time: %2</p>"
+                        "<p>The system time differs by %3 seconds from the GPS time.</p>"
+                        "<p>Correction?</p>")
+                        .arg(current.toString (notr("hh:mm:ss dd.MM.yyyy")))
+                        .arg(currentGPSdateTime.toString (notr("hh:mm:ss dd.MM.yyyy")))
+                        .arg(diff), QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
+                {
+                        // Get the current GPS time again, the messagebox can stay open a long time
+                		QDateTime gpsTime=flarm.getGpsTime ();
+                        QString timeString (gpsTime.toString (notr("yyyy-MM-dd hh:mm:ss")));
+
+                        // sudo -n: non-interactive (don't prompt for password)
+                        // sudoers entry: deffi ALL=NOPASSWD: /bin/date
+
+                        int result=QProcess::execute (notr ("sudo"), QStringList () << notr ("-n") << notr ("date") << notr ("-s") << timeString);
+                        
+                        if (result==0)
+                        {
+			        showWarning (tr ("System time changed"),
+				        tr ("The system time was changed. The setting"
+				        " may only be stored permanently when the system is shut down."), this);
+                        }
+                        else
+                        {
+			        showWarning (tr ("Error"),
+				        tr ("Changing the system time failed."
+				        " Maybe the user has insufficient permissions."),
+				        this);
+                        }
+                }
+        }
+        else
+                QMessageBox::information (this, tr("System time"), tr ("The system time is correct"));
+
 }
 
 void MainWindow::on_actionTest_triggered ()
@@ -1996,9 +2323,7 @@ void MainWindow::languageChanged ()
 	updateTimeLabels ();
 	updateDatabaseStateLabel (dbManager.getState ());
 
-	// See the FlightModel class documentation
-	flightModel->updateTranslations ();
-	flightListModel->reset ();
+	ui.flightTable->languageChanged ();
 
 	restartPlugins ();
 
@@ -2006,3 +2331,508 @@ void MainWindow::languageChanged ()
 	//ui.flightTable->resizeColumnsToContents ();
 }
 
+
+// ***********
+// ** Flarm **
+// ***********
+
+void MainWindow::on_injectFlarmDepartureAction_triggered ()
+{
+	QString flarmId=QInputDialog::getText (this, "Inject Flarm departure", "Flarm ID:", QLineEdit::Normal, debugFlarmId);
+	if (!flarmId.isNull ())
+	{
+		flarmList_departureDetected (flarmId);
+		debugFlarmId=flarmId;
+	}
+}
+
+void MainWindow::on_injectFlarmLandingAction_triggered ()
+{
+	QString flarmId=QInputDialog::getText (this, "Inject Flarm landing", "Flarm ID:", QLineEdit::Normal, debugFlarmId);
+	if (!flarmId.isNull ())
+	{
+		flarmList_landingDetected (flarmId);
+		debugFlarmId=flarmId;
+	}
+}
+
+void MainWindow::on_injectFlarmTouchAndGoAction_triggered ()
+{
+	QString flarmId=QInputDialog::getText (this, "Inject Flarm touch and go", "Flarm ID:", QLineEdit::Normal, debugFlarmId);
+	if (!flarmId.isNull ())
+	{
+		flarmList_touchAndGoDetected (flarmId);
+		debugFlarmId=flarmId;
+	}
+}
+
+void MainWindow::on_lookupPlaneAction_triggered ()
+{
+	// Query the user for the Flarm ID
+	QString flarmId=QInputDialog::getText (this, "Lookup plane", "Flarm ID:", QLineEdit::Normal, debugFlarmId);
+	if (flarmId.isNull ())
+		return;
+	debugFlarmId=flarmId;
+
+	// Do the lookup
+	PlaneLookup::Result result=PlaneLookup (cache).lookupPlane (flarmId);
+
+	// Display the result
+	QString text="Not handled";
+	if (result.plane.isValid ())
+	{
+		if (result.flarmNetRecord.isValid ())
+			text=qnotr ("Plane %1 via FlarmNet record %2")
+				.arg (result.plane->registration)
+				.arg (result.flarmNetRecord->getId ());
+		else
+			text=qnotr ("Plane %1 directly").arg (result.plane->registration);
+	}
+	else if (result.flarmNetRecord.isValid ())
+		text=qnotr ("FlarmNet record %1, registration %2")
+			.arg (result.flarmNetRecord->getId ()).arg (result.flarmNetRecord->registration);
+	else
+		text=qnotr ("Not found");
+
+	QString title=qnotr ("Lookup plane %1").arg (flarmId);
+	QMessageBox::information (this, title, text);
+}
+
+void MainWindow::on_lookupFlightAction_triggered ()
+{
+	// Query the user for the Flarm ID
+	QString flarmId=QInputDialog::getText (this, "Lookup flight", "Flarm ID:", QLineEdit::Normal, debugFlarmId);
+	if (flarmId.isNull ())
+		return;
+	debugFlarmId=flarmId;
+
+	// Query the user for the candidate flights
+	// Used mnemonics: o c - p r f l t d
+	ChoiceDialog choiceDialog (this);
+	choiceDialog.setWindowTitle ("Choose candidate flights");
+	choiceDialog.setText ("Choose the candidate flights for the flight lookup:");
+	choiceDialog.addOption ("&Prepared flights");
+	choiceDialog.addOption ("P&repared flights (with towflights)");
+	choiceDialog.addOption ("&Flying flights");
+	choiceDialog.addOption ("F&lying flights (with towflights)");
+	choiceDialog.addOption ("All flights of &today");
+	choiceDialog.addOption ("All flights of to&day (with towflights)");
+	choiceDialog.setSelectedOption (0);
+	if (choiceDialog.exec ()!=QDialog::Accepted)
+		return;
+
+	// Decode the choice to a basic set of candidates an and "include
+	// towflights" flag
+	int choice=0;
+	bool includeTowflights=false;
+	switch (choiceDialog.getSelectedOption ())
+	{
+		// Prepared flights
+		case 0: choice=0; includeTowflights=false; break;
+		case 1: choice=0; includeTowflights=true ; break;
+		// Flying flights
+		case 2: choice=1; includeTowflights=false; break;
+		case 3: choice=1; includeTowflights=true ; break;
+		// Flights of today
+		case 4: choice=2; includeTowflights=false; break;
+		case 5: choice=2; includeTowflights=true ; break;
+		default:
+			QMessageBox::warning (this, qnotr ("Unhandled choice"), qnotr ("Unhandled choice"));
+			return;
+	}
+
+	// Fetch the flights
+	QList<Flight> candidates;
+	if (choice==0)
+		candidates=cache.getPreparedFlights (includeTowflights).getList ();
+	else if (choice==1)
+		candidates=cache.getFlyingFlights (includeTowflights).getList ();
+	else if (choice==2)
+		candidates=cache.getFlightsToday (includeTowflights).getList ();
+	else
+	{
+		QMessageBox::warning (this, qnotr ("Unhandled choice"), qnotr ("Unhandled choice"));
+		return;
+	}
+
+	// Do the lookup
+	FlightLookup::Result result=FlightLookup (cache).lookupFlight (candidates, flarmId);
+
+	// Display the result
+	QString text="Not handled";
+	if (result.flightReference.isValid ())
+	{
+		if (result.plane.isValid ())
+		{
+			if (result.flarmNetRecord.isValid ())
+				text=qnotr ("%1 via plane %2 via FlarmNet record %3")
+					.arg (result.flightReference.toString ("Flight", "Towflight"))
+					.arg (result.plane->registration)
+					.arg (result.flarmNetRecord->getId ());
+			else
+				text=qnotr ("%1 via plane %2 directly")
+					.arg (result.flightReference.toString ("Flight", "Towflight"))
+					.arg (result.plane->registration);
+		}
+		else
+		{
+			text=qnotr ("%1 directly").arg (result.flightReference.toString ("Flight", "Towflight"));
+		}
+	}
+	else if (result.plane.isValid ())
+	{
+		if (result.flarmNetRecord.isValid ())
+			text=qnotr ("Plane %1 via FlarmNet record %2")
+				.arg (result.plane->registration)
+				.arg (result.flarmNetRecord->getId ());
+		else
+			text=qnotr ("Plane %1 directly").arg (result.plane->registration);
+	}
+	else if (result.flarmNetRecord.isValid ())
+		text=qnotr ("FlarmNet record %1, registration %2")
+			.arg (result.flarmNetRecord->getId ()).arg (result.flarmNetRecord->registration);
+	else
+		text=qnotr ("Not found");
+
+	QString title=qnotr ("Lookup flight %1").arg (flarmId);
+	QMessageBox::information (this, title, text);
+}
+
+
+Flight MainWindow::createFlarmFlight (const FlightLookup::Result &lookupResult, const QString &flarmId)
+{
+	Flight flight;
+
+	if (lookupResult.plane.isValid ())
+		flight.setPlaneId (lookupResult.plane->getId ());
+
+	flight.setFlarmId (flarmId);
+
+	if (lookupResult.flarmNetRecord.isValid ())
+	{
+		flight.setComments (tr ("Registration from FlarmNet: %1")
+			.arg (lookupResult.flarmNetRecord->registration));
+	}
+
+	return flight;
+}
+
+/**
+ * We use the non-interactive flight update methods (nonInteractiveDepartFlight
+ * etc.) because we do not want popups (we still get the status window, but we
+ * might be able to use a different status indicator for that). This means that
+ * we cannot perform plausibility checks like "person is still flying". There
+ * should be a way to report failed plausibility checks in an unobstrusive way.
+ */
+void MainWindow::flarmList_departureDetected (const QString &flarmId)
+{
+	// Ignore the event if handling of Flarm events is disabled
+	Settings &s=Settings::instance ();
+	if (!(s.flarmEnabled && s.flarmAutoDepartures))
+		return;
+
+	if (departureTracker.eventWithin (flarmId, ignoreDuplicateFlarmEventInterval))
+	{
+		std::cout <<
+			qnotr ("Ignored departure of %1 because it departed %2 minutes ago")
+			.arg (flarmId)
+			.arg (departureTracker.timeSinceEvent (flarmId).toString ("m:ss"))
+			<< std::endl;
+
+		return;
+	}
+
+	std::cout << "Detected departure of " << flarmId << std::endl;
+
+	// Make a list of candidate flights. Start with the prepared flights,
+	// including towflights (so we can identify the flights when the departure
+	// of the towplane is detected).
+	QList<Flight> flights=cache.getPreparedFlights (true).getList ();
+
+	// Also add the flying flights along with their towflights to the list of
+	// candidates. That way, we can handle the case that the flight has already
+	// departed (this can happen when both a plane and the towplane have a
+	// Flarm, or if a departure is misdetected).
+	flights+=cache.getFlyingFlights (true).getList ();
+
+	// Find the flight
+	FlightLookup flightLookup (cache);
+	FlightLookup::Result lookupResult=flightLookup.lookupFlight (flights, flarmId);
+
+	if (lookupResult.flightReference.isValid ())
+	{
+		// We found the flight. Depart it, unless it's already flying. This is
+		// the same for flights and towflights.
+		try
+		{
+			Flight flight=cache.getObject<Flight> (lookupResult.flightReference.id ());
+			if (flight.isFlying ())
+			{
+				std::cout << qnotr ("Departure of Flarm ID %1 ignored because "
+					"flight %2 is already flying").arg (flarmId).arg (flight.getId ())
+					<< std::endl;
+			}
+			else
+			{
+				bool departed=nonInteractiveDepartFlight (lookupResult.flightReference.id ());
+
+				if (departed)
+					ui.flightTable->showNotification (
+						lookupResult.flightReference,
+						tr ("The flight was departed automatically"),
+						notificationDisplayTime);
+			}
+		}
+		catch (Cache::NotFoundException &ex) {}
+	}
+	else
+	{
+		// We did not find the flight. Create it. The data will be incomplete
+		// and the flight will be shown in red.
+		Flight flight=createFlarmFlight (lookupResult, flarmId);
+		flight.setMode (FlightBase::modeLocal);
+		flight.setLaunchMethodId (preselectedLaunchMethod);
+		flight.departNow (Settings::instance ().location);
+		dbId flightId=dbManager.createObject (flight, this);
+		// Since the flight is newly created, it is not updated and we can't
+		// detect the change automatically.
+		flightDeparted (flightId);
+
+		if (idValid (flightId))
+			ui.flightTable->showNotification (
+				FlightReference::flight (flightId),
+				tr ("The flight was created automatically"),
+				notificationDisplayTime);
+	}
+}
+
+/**
+ * See flarmList_departureDetected
+ */
+void MainWindow::flarmList_landingDetected (const QString &flarmId)
+{
+	// Ignore the event if handling of Flarm events is disabled
+	Settings &s=Settings::instance ();
+	if (!(s.flarmEnabled && s.flarmAutoDepartures))
+		return;
+
+	if (landingTracker.eventWithin (flarmId, ignoreDuplicateFlarmEventInterval))
+	{
+		std::cout <<
+			qnotr ("Ignored landing of %1 because it landed %2 minutes ago")
+			.arg (flarmId)
+			.arg (landingTracker.timeSinceEvent (flarmId).toString ("m:ss"))
+			<< std::endl;
+
+		return;
+	}
+
+
+	std::cout << "Detected landing of " << flarmId << std::endl;
+
+	// Get a list of flying flights, including towflights. Note that, contrary
+	// to the prepared flights (needed for departures), a flying towflight does
+	// not necessarily correspond to a flying flight, nor vice versa. Therefore,
+	// we need to base the list of prepared towflights on the list of all
+	// relevant flights, whether flying or not.
+	QList<Flight> flights=dbManager.getCache ().getFlyingFlights (true).getList ();
+
+	// Find out if one of the flights (or towflights) can be matched to the
+	// Flarm ID
+	FlightLookup flightLookup (cache);
+	FlightLookup::Result lookupResult=flightLookup.lookupFlight (flights, flarmId);
+
+	if (lookupResult.flightReference.isValid ())
+	{
+		bool landed;
+		// We found the flight. Land it.
+		if (lookupResult.flightReference.towflight ())
+			landed=nonInteractiveLandTowflight (lookupResult.flightReference.id ());
+		else
+			landed=nonInteractiveLandFlight (lookupResult.flightReference.id ());
+
+		if (landed)
+			ui.flightTable->showNotification (
+				lookupResult.flightReference,
+				tr ("The flight was landed automatically"),
+				notificationDisplayTime);
+	}
+	else
+	{
+		// We did not find the flight. Create it. The data will be incomplete
+		// and the flight will be shown in red.
+		Flight flight=createFlarmFlight (lookupResult, flarmId);
+		flight.setMode (FlightBase::modeComing);
+		flight.landNow (Settings::instance ().location);
+		dbId flightId=dbManager.createObject (flight, this);
+		// Since the flight is newly created, it is not updated and we can't
+		// detect the change automatically.
+		flightLanded (flightId);
+
+		if (idValid(flightId))
+			ui.flightTable->showNotification (
+				FlightReference::flight (flightId),
+				tr ("The flight was created automatically"),
+				notificationDisplayTime);
+	}
+}
+
+/**
+ * See flarmList_departureDetected
+ */
+void MainWindow::flarmList_touchAndGoDetected (const QString &flarmId)
+{
+	// Ignore the event if handling of Flarm events is disabled
+	Settings &s=Settings::instance ();
+	if (!(s.flarmEnabled && s.flarmAutoDepartures))
+		return;
+
+	if (touchAndGoTracker.eventWithin (flarmId, ignoreDuplicateFlarmEventInterval))
+	{
+		std::cout <<
+			qnotr ("Ignored touch-and-go of %1 because it performed a touch-and-go %2 minutes ago")
+			.arg (flarmId)
+			.arg (touchAndGoTracker.timeSinceEvent (flarmId).toString ("m:ss"))
+			<< std::endl;
+
+		return;
+	}
+
+	std::cout << "Detected touch-and-go of " << flarmId << std::endl;
+
+	// The candidates for the towflights are flying flights, including
+	// towflights. The touch-and-go will be ignored for towflights, but we still
+	// include them in the list so no new flight is created.
+	QList<Flight> flights=dbManager.getCache ().getFlyingFlights (true).getList ();
+	FlightLookup flightLookup (cache);
+	FlightLookup::Result lookupResult=flightLookup.lookupFlight (flights, flarmId);
+
+	if (lookupResult.flightReference.isValid ())
+	{
+		// We found the flight. Perform a touch and go (if possible). Ignore the
+		// event for towflights, they can't perform a touch-and-go.
+		if (!lookupResult.flightReference.towflight ())
+		{
+			bool performed=nonInteractiveTouchAndGo (lookupResult.flightReference.id ());
+
+			if (performed)
+				ui.flightTable->showNotification (
+					lookupResult.flightReference,
+					tr ("The flight performed a touch-and-go automatically"),
+					notificationDisplayTime);
+		}
+	}
+	else
+	{
+		// We did not find the flight. Create it. The data will be incomplete
+		// and the flight will be shown in red.
+		Flight flight=createFlarmFlight (lookupResult, flarmId);
+		flight.setMode (FlightBase::modeComing);
+		flight.performTouchngo ();
+		dbId flightId=dbManager.createObject (flight, this);
+		// Since the flight is newly created, it is not updated and we can't
+		// detect the change automatically.
+		touchAndGoPerformed (flightId);
+
+		if (idValid(flightId))
+			ui.flightTable->showNotification (
+				FlightReference::flight (flightId),
+				tr ("The flight was created automatically"),
+				notificationDisplayTime);
+	}
+}
+
+void MainWindow::on_showNotificationAction_triggered ()
+{
+	FlightReference flight=ui.flightTable->selectedFlightReference ();
+
+	ui.flightTable->showNotification (
+		flight,
+		QString ("NotificationWidget test for flight %1").arg (flight.id ()),
+		5000);
+}
+
+void MainWindow::flightDeparted (dbId id)
+{
+	// Departing a flight departs both the plane and the towplane
+	QString flarmId;
+
+	flarmId=determineFlarmId (id, false);
+	if (!flarmId.isEmpty ())
+		departureTracker.eventNow (flarmId);
+
+	flarmId=determineFlarmId (id, true);
+	if (!flarmId.isEmpty ())
+		departureTracker.eventNow (flarmId);
+}
+
+void MainWindow::flightLanded (dbId id)
+{
+	QString flarmId=determineFlarmId (id, false);
+	if (!flarmId.isEmpty ())
+		landingTracker.eventNow (flarmId);
+}
+
+void MainWindow::towflightLanded (dbId id)
+{
+	QString flarmId=determineFlarmId (id, true);
+	if (!flarmId.isEmpty ())
+		landingTracker.eventNow (flarmId); // Note that we have the towplane's Flarm ID
+}
+
+void MainWindow::touchAndGoPerformed (dbId id)
+{
+	QString flarmId=determineFlarmId (id, false);
+	if (!flarmId.isEmpty ())
+		touchAndGoTracker.eventNow (flarmId);
+}
+
+// Meh, this stinks
+/**
+ * Returns the Flarm ID of the flight, if it has one, or of the plane (if it has
+ * one, but the flight doesn't), or an empty QString otherwise.
+ *
+ * If ofTowflight is true, the towflight is considered instead of the flight,
+ * and the Flarm ID of the flight is not used.
+ *
+ * @param flightId
+ * @param ofTowflight
+ * @return
+ */
+QString MainWindow::determineFlarmId (dbId flightId, bool ofTowflight)
+{
+	try
+	{
+		Flight flight=cache.getObject<Flight> (flightId);
+
+		if (ofTowflight)
+			flight=flight.makeTowflight (cache);
+
+		// Try the Flarm ID of the flight (a towflight won't have one)
+		if (!flight.getFlarmId ().isEmpty ())
+			return flight.getFlarmId ();
+
+		// Try the Flarm ID of the plane
+		if (idValid (flight.getPlaneId ()))
+		{
+			Plane plane=cache.getObject<Plane> (flight.getPlaneId ());
+			if (!plane.flarmId.isEmpty ())
+				return plane.flarmId;
+		}
+
+		// No result
+	}
+	catch (Cache::NotFoundException &ex) {}
+
+	return QString ();
+}
+
+void MainWindow::on_decodeFlarmNetFileAction_triggered ()
+{
+	FlarmNetHandler (dbManager, this).interactiveDecodeFile ();
+}
+
+void MainWindow::on_encodeFlarmNetFileAction_triggered ()
+{
+	FlarmNetHandler (dbManager, this).interactiveEncodeFile ();
+}

@@ -78,7 +78,6 @@ void TranslationManager::install (QApplication *application)
  * @return the locale name, or an empty string if the filename does not
  *         represent a known translation file pattern
  */
-// FIXME required?
 QString TranslationManager::localeNameFromFilename (const QString &filename)
 {
 	QRegExp regexp (notr ("startkladde_(.*)\\.qm"));
@@ -118,17 +117,17 @@ bool TranslationManager::loadTranslation (QTranslator &translator, const QString
 		// filename specified because the translator tries to shorten the
 		// filename if the file does not exist, e. g. from startkladde_de_DE.qm
 		// to startkladde_de.qm.
-		std::cout << qnotr ("Trying to load %1 from %2...").arg (filename, dir.path ());
+//		std::cout << qnotr ("Trying to load %1 from %2...").arg (filename, dir.path ());
 		if (translator.load (filename, dir.path ()))
 		{
 			// Loading succeeded. Return success.
-			std::cout << notr ("OK") << std::endl;
+//			std::cout << notr ("OK") << std::endl;
 			return true;
 		}
 		else
 		{
 			// Loading failed. Continue trying.
-			std::cout << notr ("failed") << std::endl;
+//			std::cout << notr ("failed") << std::endl;
 		}
 	}
 
@@ -153,7 +152,7 @@ bool TranslationManager::unload (bool force)
 	if (currentLocale!="" || force)
 	{
 		// Output a message
-		std::cout << notr ("Unloading translation") << std::endl;
+//		std::cout << notr ("Unloading translation") << std::endl;
 
 		appTranslator.load ("");
 		qtTranslator .load ("");
@@ -179,7 +178,7 @@ bool TranslationManager::loadForLocale (const QString &localeName, bool force)
 		return true;
 
 	// Output a message
-	std::cout << notr ("Loading translation for ") << localeName << std::endl;
+//	std::cout << notr ("Loading translation for ") << localeName << std::endl;
 
 	// Load the application translation
 	if (loadTranslation (appTranslator, notr ("startkladde"), localeName))
@@ -304,11 +303,11 @@ QList<TranslationManager::Language> TranslationManager::listLanguages ()
 		}
 	}
 
-	std::cout << notr ("Found languages:") << std::endl;
-	foreach (const Language &language, languages)
-		std::cout << qnotr ("  * %1 (%2)").arg (language.languageName, language.localeName) << std::endl;
-	foreach (const Language &language, languagesWithoutName)
-		std::cout << qnotr ("  * %1").arg (language.localeName) << std::endl;
+//	std::cout << notr ("Found languages:") << std::endl;
+//	foreach (const Language &language, languages)
+//		std::cout << qnotr ("  * %1 (%2)").arg (language.languageName, language.localeName) << std::endl;
+//	foreach (const Language &language, languagesWithoutName)
+//		std::cout << qnotr ("  * %1").arg (language.localeName) << std::endl;
 
 	return languages+languagesWithoutName;
 }

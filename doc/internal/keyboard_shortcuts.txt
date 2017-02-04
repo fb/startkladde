@@ -46,6 +46,7 @@ Remaining words: 18
 Unique letter:
 * flight type  . . . . . . . . . . y
 * number of landings . . . . . . . b
+* advanced . . . . . . . . . . . . v 
 
 Must be unique:
 * automatic/departed . . . . . . . t

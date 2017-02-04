@@ -1,5 +1,7 @@
 #include "Cache.h"
 
+#include <QMultiHash>
+
 #include "src/container/SortedSet_impl.h"
 
 /*
@@ -18,6 +20,7 @@
 #include "src/model/LaunchMethod.h"
 #include "src/model/Person.h"
 #include "src/model/Plane.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h"
 #include "src/text.h"
 
 // All of these methods do not handle the by-id hashes
@@ -50,6 +53,7 @@ template<> void Cache::clearHashes<Plane> ()
 		planeTypes.clear ();
 		planeRegistrations.clear ();
 		planeIdsByRegistration.clear ();
+		planeIdsByFlarmId.clear ();
 		// clubs is used by multiple types
 	}
 }
@@ -65,6 +69,7 @@ template<> void Cache::updateHashesObjectAdded<Plane> (const Plane &plane)
 		if (!isBlank (plane.type)) planeTypes.insert (plane.type);
 		planeRegistrations.insert (plane.registration);
 		planeIdsByRegistration.insert (plane.registration.toLower (), plane.getId ());
+		planeIdsByFlarmId.insert (plane.flarmId, plane.getId ());
 		if (!isBlank (plane.club)) clubs.insert (plane.club);
 	}
 }
@@ -78,10 +83,13 @@ template<> void Cache::updateHashesObjectDeleted<Plane> (dbId id, const Plane *o
 		{
 			QString registration=oldPlane->registration;
 			QString registrationLower=registration.toLower ();
+			QString flarmId=oldPlane->flarmId;
 
 			planeIdsByRegistration.remove (registrationLower, id);
 			if (!planeIdsByRegistration.contains (registrationLower))
 				planeRegistrations.remove (registration);
+
+			planeIdsByFlarmId.remove (flarmId, id);
 		}
 		// Leave clubs
 	}
@@ -95,7 +103,6 @@ template<> void Cache::updateHashesObjectUpdated<Plane> (const Plane &plane, con
 		updateHashesObjectAdded (plane);
 	}
 }
-
 
 // ************
 // ** People **
@@ -261,3 +268,50 @@ template<> void Cache::updateHashesObjectUpdated<Flight> (const Flight &flight, 
 		updateHashesObjectAdded (flight);
 	}
 }
+
+// ********************
+// ** FlarmNetRecord **
+// ********************
+template<> void Cache::clearHashes<FlarmNetRecord> ()
+{
+	synchronized (dataMutex)
+	{
+		flarmNetRecordIdsByFlarmId.clear ();
+	}
+}
+
+template<> void Cache::updateHashesObjectAdded<FlarmNetRecord> (const FlarmNetRecord &record)
+{
+	// All values inserted here should be removed in the corresponding
+	// updateHashesObjectDeleted method, if possible; otherwise, care must be
+	// taken not to insert a value multiple times if an object is deleted and
+	// re-added.
+	synchronized (dataMutex)
+	{
+		dbId id=record.getId ();
+		QString flarmId = record.flarmId;
+
+		flarmNetRecordIdsByFlarmId.insert (flarmId, id);
+	}
+}
+
+template<> void Cache::updateHashesObjectDeleted<FlarmNetRecord> (dbId id, const FlarmNetRecord *oldRecord)
+{
+	synchronized (dataMutex)
+	{
+		QString flarmId = oldRecord->flarmId;
+
+		if (flarmNetRecordIdsByFlarmId.contains (flarmId))
+                        flarmNetRecordIdsByFlarmId.remove (flarmId, id);
+	}
+}
+
+template<> void Cache::updateHashesObjectUpdated<FlarmNetRecord> (const FlarmNetRecord &record, const FlarmNetRecord *oldRecord)
+{
+	synchronized (dataMutex)
+	{
+		updateHashesObjectDeleted<FlarmNetRecord> (record.getId (), oldRecord);
+		updateHashesObjectAdded (record);
+	}
+}
+

@@ -75,6 +75,8 @@ class FlightBase
 
 		flight_value_accessor (QString, Comments, comments);
 		flight_value_accessor (QString, AccountingNotes, accountingNotes);
+		/* Only set when the flight is created automatically from a Flarm event */
+		flight_value_accessor (QString, FlarmId, flarmId);
 
 	private:
 		void initialize (dbId id);
@@ -109,6 +111,7 @@ class FlightBase
 
 		QString comments;
 		QString accountingNotes;
+		QString flarmId;
 };
 
 #undef flight_value_accessor

@@ -111,11 +111,12 @@ class DbManager: public QObject
 		void fetchFlights (QDate date, QWidget *parent);
 		template<class T> void refreshObjects (QWidget *parent);
 
-		template<class T> bool objectUsed    (dbId id               , QWidget *parent);
-		template<class T> void deleteObject  (dbId id               , QWidget *parent);
-		template<class T> void deleteObjects (const QList<dbId> &ids, QWidget *parent);
-		template<class T> dbId createObject  (      T &object       , QWidget *parent);
-		template<class T> int  updateObject  (const T &object       , QWidget *parent);
+		template<class T> bool objectUsed    (dbId id                , QWidget *parent);
+		template<class T> void deleteObject  (dbId id                , QWidget *parent);
+		template<class T> void deleteObjects (const QList<dbId> &ids , QWidget *parent);
+		template<class T> dbId createObject  (      T &object        , QWidget *parent);
+		template<class T> void createObjects (      QList<T> &objects, QWidget *parent);
+		template<class T> int  updateObject  (const T &object        , QWidget *parent);
 
 		QList<Flight> getFlights (const QDate &first, const QDate &last, QWidget *parent);
 

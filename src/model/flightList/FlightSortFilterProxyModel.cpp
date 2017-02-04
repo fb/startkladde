@@ -2,20 +2,36 @@
 
 #include <cassert>
 
-#include "src/model/objectList/ObjectListModel.h"
+#include "src/FlightReference.h"
+#include "src/config/Settings.h"
 #include "src/model/Flight.h"
+#include "src/model/objectList/ObjectListModel.h"
 
 FlightSortFilterProxyModel::FlightSortFilterProxyModel (Cache &cache, QObject *parent):
 	QSortFilterProxyModel (parent),
 	cache (cache),
 	showPreparedFlights (true),
 	hideFinishedFlights (false), alwaysShowExternalFlights (true), alwaysShowErroneousFlights (true),
+	flarmIdColumn (-1), idColumn (-1),
 	customSorting (true)
 {
+	acceptDebugColumns=Settings::instance ().enableDebug;
+
+	connect (&Settings::instance (), SIGNAL (changed ()), this, SLOT (settingsChanged ()));
 }
 
 FlightSortFilterProxyModel::~FlightSortFilterProxyModel ()
 {
+}
+
+void FlightSortFilterProxyModel::setForceVisible (const FlightReference &flight, bool forceVisible)
+{
+	if (forceVisible)
+		flightsForceVisible.insert (flight);
+	else
+		flightsForceVisible.remove (flight);
+
+	invalidate ();
 }
 
 bool FlightSortFilterProxyModel::filterAcceptsRow (int sourceRow, const QModelIndex &sourceParent) const
@@ -28,6 +44,9 @@ bool FlightSortFilterProxyModel::filterAcceptsRow (int sourceRow, const QModelIn
 
 	// Get the flight from the model
 	const Flight &flight=flightList->at (sourceRow);
+
+	if (flightsForceVisible.contains (FlightReference (flight)))
+		return true;
 
 	if (flight.isPrepared ())
 	{
@@ -68,8 +87,20 @@ bool FlightSortFilterProxyModel::filterAcceptsRow (int sourceRow, const QModelIn
 	return true;
 }
 
+bool FlightSortFilterProxyModel::filterAcceptsColumn (int sourceColumn, const QModelIndex &sourceParent) const
+{
+	(void)sourceParent;
+
+	if (sourceColumn==flarmIdColumn || sourceColumn==idColumn)
+		return acceptDebugColumns;
+	else
+		return true;
+}
+
 bool FlightSortFilterProxyModel::lessThan (const QModelIndex &left, const QModelIndex &right) const
 {
+	// TODO: when sorting by time etc.: always sort prepared flights last
+
 	ObjectListModel<Flight> *flightList=dynamic_cast<ObjectListModel<Flight> *> (sourceModel ());
 
 	// If the model is not an ObjectListModel<Flight>, use the default sorting.
@@ -104,4 +135,21 @@ void FlightSortFilterProxyModel::sortCustom ()
 
 	// The sort column will be ignored for custom sorting
 	sort (0, Qt::AscendingOrder);
+}
+
+void FlightSortFilterProxyModel::setFlarmIdColumn (int column)
+{
+	flarmIdColumn=column;
+}
+
+void FlightSortFilterProxyModel::setIdColumn (int column)
+{
+	idColumn=column;
+}
+
+void FlightSortFilterProxyModel::settingsChanged ()
+{
+	beginResetModel ();
+	acceptDebugColumns=Settings::instance ().enableDebug;
+	endResetModel ();
 }

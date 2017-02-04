@@ -3,8 +3,6 @@
  *   - allow setting some settings by both the config file and the command line
  */
 
-
-
 #include "Settings.h"
 
 #include <iostream>
@@ -42,7 +40,7 @@ Settings::Settings ():
 	// initialized.
 	enableDebug (false), coloredLabels (false), displayQueries (false),
 	noFullScreen (false), enableShutdown (false),
-	overrideDatabaseName (false)
+	overrideDatabaseName (false), overrideDatabasePort (false)
 {
 	readSettings ();
 }
@@ -88,6 +86,23 @@ QStringList Settings::readArgs (const QStringList &args)
 					// Overwrite the stored value in case it has already been
 					// read from the settings store.
 					databaseInfo.database=overrideDatabaseNameValue;
+				}
+				else
+					std::cout << notr ("No database specified after --database-name") << std::endl;
+			}
+			else if (arg==notr ("--database-port"))
+			{
+				if (!unprocessed.empty ())
+				{
+					bool ok;
+					overrideDatabasePortValue=unprocessed.takeFirst ().toInt (&ok);
+					if (ok)
+					{
+						overrideDatabasePort=true;
+						// Overwrite the stored value in case it has already been
+						// read from the settings store.
+						databaseInfo.port=overrideDatabasePortValue;
+					}
 				}
 				else
 					std::cout << notr ("No database specified after --database-name") << std::endl;
@@ -204,6 +219,8 @@ void Settings::readSettings ()
 	// be written back.
 	if (overrideDatabaseName)
 		databaseInfo.database=overrideDatabaseNameValue;
+	if (overrideDatabasePort)
+		databaseInfo.port=overrideDatabasePortValue;
 
 	// *** Settings
 	// UI
@@ -214,6 +231,21 @@ void Settings::readSettings ()
 	location      =s.value (notr ("location")      , tr ("Twiddlethorpe")).toString ();
 	recordTowpilot=s.value (notr ("recordTowpilot"), true            ).toBool ();
 	checkMedicals =s.value (notr ("checkMedicals") , true            ).toBool ();
+	// Flarm
+	flarmEnabled         =s.value (notr("flarmEnabled"),           true   ).toBool ();
+	QString flarmConnectionTypeString=s.value (notr ("flarmConnectionType"  ), "").toString ();
+	flarmConnectionType  =Flarm::ConnectionType_fromString (flarmConnectionTypeString, Flarm::noConnection);
+	flarmSerialPort      =s.value (notr ("flarmSerialPort"      ), ""         ).toString ();
+	flarmSerialBaudRate  =s.value (notr ("flarmSerialBaudRate"  ), 19200      ).toInt    ();
+	flarmTcpHost         =s.value (notr ("flarmTcpHost"         ), "localhost").toString ();
+	flarmTcpPort         =s.value (notr ("flarmTcpPort"         ), 1024       ).toInt    ();
+	flarmFileName        =s.value (notr ("flarmFileName"        ), ""         ).toString ();
+	flarmFileDelayMs     =s.value (notr ("flarmFileDelayMs"     ), 0          ).toInt    ();
+	flarmAutoDepartures  =s.value (notr ("flarmAutoDepartures"  ), true       ).toBool   ();
+	flarmDataViewable    =s.value (notr ("flarmDataViewable"    ), true       ).toBool   ();
+	flarmMapKmlFileName  =s.value (notr ("flarmMapKmlFileName"  ), ""         ).toString ();
+	// FlarmNet
+	flarmNetEnabled      =s.value (notr("flarmNetEnabled"),        true   ).toBool ();
 	// Permissions
 	protectSettings      =s.value (notr ("protectSettings"      ), false).toBool ();
 	protectLaunchMethods =s.value (notr ("protectLaunchMethods" ), false).toBool ();
@@ -272,7 +304,7 @@ void Settings::writeSettings ()
 
 	// *** Database
 	// If the database name has been overridden, don't store the settings
-	if (!overrideDatabaseName)
+	if (!overrideDatabaseName && !overrideDatabasePort)
 	{
 		s.beginGroup (notr ("database"));
 		databaseInfo.save (s); // Connection
@@ -288,6 +320,20 @@ void Settings::writeSettings ()
 	s.setValue (notr ("location")      , location      );
 	s.setValue (notr ("recordTowpilot"), recordTowpilot);
 	s.setValue (notr ("checkMedicals") , checkMedicals );
+	// Flarm
+	s.setValue (notr ("flarmEnabled"         ), flarmEnabled       );
+	s.setValue (notr ("flarmConnectionType"  ), Flarm::ConnectionType_toString (flarmConnectionType));
+	s.setValue (notr ("flarmSerialPort"      ), flarmSerialPort);
+	s.setValue (notr ("flarmSerialBaudRate"  ), flarmSerialBaudRate);
+	s.setValue (notr ("flarmTcpHost"         ), flarmTcpHost);
+	s.setValue (notr ("flarmTcpPort"         ), flarmTcpPort);
+	s.setValue (notr ("flarmFileName"        ), flarmFileName);
+	s.setValue (notr ("flarmFileDelayMs"     ), flarmFileDelayMs);
+	s.setValue (notr ("flarmAutoDepartures"  ), flarmAutoDepartures);
+	s.setValue (notr ("flarmDataViewable"    ), flarmDataViewable  );
+	s.setValue (notr ("flarmMapKmlFileName"  ), flarmMapKmlFileName);
+	// FlarmNet
+	s.setValue (notr ("flarmNetEnabled"      ), flarmNetEnabled);
 	// Permissions
 	s.setValue (notr ("protectSettings"      ), protectSettings      );
 	s.setValue (notr ("protectLaunchMethods" ), protectLaunchMethods );

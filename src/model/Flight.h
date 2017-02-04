@@ -69,8 +69,6 @@ class Flight: public FlightBase
 		virtual ~Flight ();
 
 
-
-
 		// *** Comparison
 		virtual bool operator< (const Flight &o) const;
 		static bool lessThan (Flight *a, Flight *b) { return *a < *b; }
@@ -78,9 +76,9 @@ class Flight: public FlightBase
 
 
 		// *** Status
-		// TODO fliegt and isFlying are probably not correct
+		// FIXME get rid of "fliegt"
 		virtual bool fliegt () const { return happened () && !finished (); }
-		virtual bool isFlying () const { return departsHere () && landsHere () && getDeparted () && !getLanded (); }
+		virtual bool isFlying () const;
 		virtual bool sfz_fliegt () const { return happened () && !getTowflightLanded (); }
 //		TODO: !((departs_here and departed) or (lands_here and landed))
 		virtual bool isPrepared () const { return !happened (); }
@@ -138,11 +136,16 @@ class Flight: public FlightBase
 		virtual bool landTowflightNow (bool force=false);
 		virtual bool performTouchngo  (bool force=false);
 
+		virtual bool departNow        (const QString &location, bool force=false);
+		virtual bool landNow          (const QString &location, bool force=false);
+		virtual bool landTowflightNow (const QString &location, bool force=false);
+
 		// *** Times
 		virtual QDateTime effectiveTime () const;
 		// TODO which one of these is right?
 		virtual QDate effdatum (Qt::TimeSpec spec=Qt::UTC) const;
 		virtual QDate getEffectiveDate (Qt::TimeSpec spec, QDate defaultDate) const;
+		virtual bool isCurrent () const;
 
 		virtual bool canHaveDepartureTime        () const { return departsHere (); }
 		virtual bool canHaveLandingTime          () const { return landsHere () || isTowflight (); }
@@ -174,6 +177,7 @@ class Flight: public FlightBase
 		virtual bool collectiveLogEntryPossible (const Flight *prev, const Plane *plane) const;
 		virtual bool isExternal () const { return !landsHere () || !departsHere (); }
 		virtual Flight makeTowflight (dbId theTowplaneId, dbId towLaunchMethod) const;
+		virtual Flight makeTowflight (Cache &cache) const;
 		static QList<Flight> makeTowflights (const QList<Flight> &flights, Cache &cache);
 		virtual QColor getColor (Cache &cache) const;
 		virtual bool isTraining () const { return typeIsTraining (getType ()); }

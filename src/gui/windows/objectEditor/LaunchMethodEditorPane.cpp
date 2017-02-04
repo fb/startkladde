@@ -10,8 +10,8 @@
 // ** Construction **
 // ******************
 
-LaunchMethodEditorPane::LaunchMethodEditorPane (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent):
-	ObjectEditorPane<LaunchMethod> (mode, cache, parent)
+LaunchMethodEditorPane::LaunchMethodEditorPane (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent):
+	ObjectEditorPane<LaunchMethod> (mode, dbManager, parent)
 {
 	ui.setupUi(this);
 
@@ -30,10 +30,10 @@ LaunchMethodEditorPane::~LaunchMethodEditorPane()
 
 }
 
-template<> ObjectEditorPane<LaunchMethod> *ObjectEditorPane<LaunchMethod>::create (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent, ObjectEditorPaneData *paneData)
+template<> ObjectEditorPane<LaunchMethod> *ObjectEditorPane<LaunchMethod>::create (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent, ObjectEditorPaneData *paneData)
 {
 	(void)paneData;
-	return new LaunchMethodEditorPane (mode, cache, parent);
+	return new LaunchMethodEditorPane (mode, dbManager, parent);
 }
 
 
@@ -130,7 +130,7 @@ void LaunchMethodEditorPane::objectToFields (const LaunchMethod &launchMethod)
 	on_specificTowplaneInput_toggled (ui.specificTowplaneInput->isChecked ());
 }
 
-void LaunchMethodEditorPane::fieldsToObject (LaunchMethod &launchMethod)
+void LaunchMethodEditorPane::fieldsToObject (LaunchMethod &launchMethod, bool performChecks)
 {
 	launchMethod.name                 = ui.nameInput                     ->text ().simplified ();
 	launchMethod.shortName            = ui.shortNameInput                ->text ().simplified ();
@@ -143,6 +143,8 @@ void LaunchMethodEditorPane::fieldsToObject (LaunchMethod &launchMethod)
 		launchMethod.towplaneRegistration = ui.towplaneRegistrationInput ->currentText ().simplified ();
 	launchMethod.personRequired       = ui.personRequiredInput           ->currentItemData ().toBool ();
 	launchMethod.comments             = ui.commentsInput                 ->text ().simplified ();
+
+	if (!performChecks) return;
 
 	// Error checks
 	// TODO error checks:

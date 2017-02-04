@@ -41,8 +41,6 @@ template<class T> ObjectListWindow<T>::ObjectListWindow (DbManager &manager, QWi
 	manager (manager),
 	contextMenu (new QMenu (this))
 {
-		ui.setupUi(this);
-
 	editPermission.setMessage (qApp->translate ("ObjectListWindow<T>", "The database password must be entered to edit %1.").arg (T::objectTypeDescriptionPlural ()));
 
 	// Create the object listModel
@@ -51,13 +49,20 @@ template<class T> ObjectListWindow<T>::ObjectListWindow (DbManager &manager, QWi
 
 	// Create the object model and object list model
 	objectModel=new typename T::DefaultObjectModel ();
-	listModel = new ObjectListModel<T> (list, false, objectModel, true, this);
+	listModel = new ObjectListModel<T> (this);
+	listModel->setList  (list       , false);
+	listModel->setModel (objectModel, true );
+
 
 	// Set the list model as the table's model with a sort proxy
 	proxyModel=new QSortFilterProxyModel (this);
 	proxyModel->setSourceModel (listModel);
 	proxyModel->setSortCaseSensitivity (Qt::CaseInsensitive);
 	proxyModel->setDynamicSortFilter (true);
+
+	// filter all columns
+	proxyModel->setFilterKeyColumn (-1);
+                                
 	ui.table->setModel (proxyModel);
 
 	ui.table->setAutoResizeRows (true);
@@ -466,6 +471,17 @@ template<class T> void ObjectListWindow<T>::languageChanged ()
 	ui.table->resizeColumnsToContents ();
 }
 
+template<class T> void ObjectListWindow<T>::searchClear () {
+        // qDebug () << "ObjectListWindow<T>::searchClear: " << endl;
+	ui.searchEdit->clear();
+}
+
+template<class T> void ObjectListWindow<T>::searchTextChanged (const QString& search) {
+	//qDebug () << "ObjectListWindow<T>::searchTextChanged: " << search << endl;
+	proxyModel->setFilterRegExp (QRegExp (search, Qt::CaseInsensitive, QRegExp::FixedString));
+	ui.clearButton->setVisible (!search.isEmpty());
+}
+
 
 /**
  * Creates a new instance of ObjectListWindow for the given type
@@ -496,6 +512,10 @@ template<class T> ObjectListWindow<T> *ObjectListWindow<T>::create (DbManager &m
 	return new ObjectListWindow<T> (manager, parent);
 }
 
+template<class T> void ObjectListWindow<T>::refreshColumn (int column)
+{
+	listModel->refreshColumn (column);
+}
 
 // **********************************
 // ** Create method specialization **
@@ -520,3 +540,4 @@ template<> ObjectListWindow<Person> *ObjectListWindow<Person>::create (DbManager
 template class ObjectListWindow<Plane>;
 template class ObjectListWindow<Person>;
 template class ObjectListWindow<LaunchMethod>;
+

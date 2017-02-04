@@ -7,6 +7,8 @@
 #include "src/model/Plane.h"
 #include "src/util/qString.h"
 #include "src/i18n/notr.h"
+#include "src/gui/windows/input/ChoiceDialog.h"
+#include "src/flarm/algorithms/FlarmIdCheck.h"
 
 /*
  * Improvements:
@@ -25,8 +27,9 @@
 // ** Construction **
 // ******************
 
-PlaneEditorPane::PlaneEditorPane (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent):
-	ObjectEditorPane<Plane> (mode, cache, parent)
+PlaneEditorPane::PlaneEditorPane (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent, PlaneEditorPaneData *paneData):
+	ObjectEditorPane<Plane> (mode, dbManager, parent),
+	paneData (paneData)
 {
 	ui.setupUi(this);
 
@@ -43,6 +46,16 @@ PlaneEditorPane::PlaneEditorPane (ObjectEditorWindowBase::Mode mode, Cache &cach
 	ui.registrationInput->setFocus ();
 //	ui.registrationInput->setCursorPosition (ui.registrationInput->text ().length ());
 //	ui.registrationInput->end (false);
+
+	if (paneData)
+	{
+		ui.flarmIdInput     ->setEnabled (!paneData->flarmIdReadOnly     );
+		ui.registrationInput->setEnabled (!paneData->registrationReadOnly);
+	}
+	else
+	{
+		ui.flarmIdInput->setEnabled (true);
+	}
 }
 
 PlaneEditorPane::~PlaneEditorPane()
@@ -50,10 +63,9 @@ PlaneEditorPane::~PlaneEditorPane()
 
 }
 
-template<> ObjectEditorPane<Plane> *ObjectEditorPane<Plane>::create (ObjectEditorWindowBase::Mode mode, Cache &cache, QWidget *parent, ObjectEditorPaneData *paneData)
+template<> ObjectEditorPane<Plane> *ObjectEditorPane<Plane>::create (ObjectEditorWindowBase::Mode mode, DbManager &dbManager, QWidget *parent, ObjectEditorPaneData *paneData)
 {
-	(void)paneData;
-	return new PlaneEditorPane (mode, cache, parent);
+	return new PlaneEditorPane (mode, dbManager, parent, dynamic_cast<PlaneEditorPaneData *> (paneData));
 }
 
 
@@ -130,11 +142,14 @@ void PlaneEditorPane::objectToFields (const Plane &plane)
 	ui.typeInput->setEditText (plane.type);
 	ui.clubInput->setEditText (plane.club);
 	ui.seatsInput->setValue (plane.numSeats);
+	ui.flarmIdInput->setText (plane.flarmId);
 	ui.commentsInput->setText (plane.comments);
 }
 
-void PlaneEditorPane::fieldsToObject (Plane &plane)
+void PlaneEditorPane::fieldsToObject (Plane &plane, bool performChecks)
 {
+	if (!performChecks) return;
+
 	// TODO: checks go here; throw AbortedException if aborted
 
 	plane.registration=ui.registrationInput->text ().simplified ();
@@ -144,8 +159,8 @@ void PlaneEditorPane::fieldsToObject (Plane &plane)
 	plane.type=ui.typeInput->currentText ().simplified ();
 	plane.club=ui.clubInput->currentText ().simplified ();
 	plane.numSeats=ui.seatsInput->value ();
+	plane.flarmId=ui.flarmIdInput->text ().simplified ();
 	plane.comments=ui.commentsInput->text ().simplified ();
-
 
 	// Error checks
 	if (mode==ObjectEditorWindowBase::modeCreate && idValid (cache.getPlaneIdByRegistration (plane.registration)))
@@ -184,6 +199,13 @@ void PlaneEditorPane::fieldsToObject (Plane &plane)
 	if (maxSeats>=0 && plane.numSeats>maxSeats)
 		errorCheck (tr ("To many seats specified for the selected category."),
 			ui.seatsInput);
+
+	FlarmIdCheck flarmIdCheck (dbManager, this);
+	flarmIdCheck.interactiveCheck (plane.flarmId, getOriginalObject ().getId (),
+		getOriginalObject ().flarmId);
+	bool checkResult=flarmIdCheck.interactiveApply (&plane.flarmId);
+	if (!checkResult)
+		throw AbortedException ();
 }
 
 // **********

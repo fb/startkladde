@@ -5,10 +5,11 @@
 
 /*
  * This file contains the implementations of the template SortedSet. It must be
- * included in all files that call SortedSet methods.
- * The definition in this file is separete from the class declaration in
+ * included in all files that call SortedSet methods. Files that only declare
+ * SortedSet instances should only include SortedSet.h.
+ * The implementation in this file is separate from the class declaration in
  * SortedSet.h to reduce compile time dependencies, e. g. from MainWindow.cpp
- * via Cache.h.
+ * via Cache.h, by only including the implementation in Cache.cpp.
  */
 
 // *****************

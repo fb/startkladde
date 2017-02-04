@@ -58,6 +58,17 @@
     </message>
 </context>
 <context>
+    <name>ChoiceDialogClass</name>
+    <message>
+        <source>Dialog</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished">...</translation>
+    </message>
+</context>
+<context>
     <name>ConfirmOverwritePersonDialog</name>
     <message>
         <source>Erroneous entries (will be overwritten)</source>
@@ -121,33 +132,6 @@ Verdergaan?&lt;/html&gt;</translation>
     <message>
         <source>&lt;html&gt;The column separator character. This is usually a comma, but other values, like semicolons, are also in use.&lt;/html&gt;</source>
         <translation>&lt;html&gt;Het kolomseparatie teken. Dit is normaal gezien een Komma, maar andere tekens, zoals puntkomma&apos;s, zijn ook bruikbaar.&lt;/html&gt;</translation>
-    </message>
-</context>
-<context>
-    <name>DWDAnimationPlugin</name>
-    <message>
-        <source>DWD rain radar (animation)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Displays a rain radar animation from dwd.de</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Downloading radar animation...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Saving radar animation</source>
-        <translation type="unfinished">Radaranimatie aan het saven</translation>
-    </message>
-    <message>
-        <source>Error reading the animation</source>
-        <translation type="unfinished">Fout bij het lezen van de animatie</translation>
-    </message>
-    <message>
-        <source>Error: radar animation not found (404)</source>
-        <translation type="unfinished">Fout: radaranimatie niet gevonden (404)</translation>
     </message>
 </context>
 <context>
@@ -415,12 +399,12 @@ Update de databank nu?</translation>
     <message>
         <source>Connection canceled</source>
         <comment>Title</comment>
-        <translation type="obsolete">Verbinding verbroken</translation>
+        <translation type="vanished">Verbinding verbroken</translation>
     </message>
     <message>
         <source>Connection canceled</source>
         <comment>Text</comment>
-        <translation type="obsolete">Verbinding geannuleerd </translation>
+        <translation type="vanished">Verbinding geannuleerd </translation>
     </message>
     <message>
         <source>Connection failed</source>
@@ -634,6 +618,480 @@ Update de databank nu?</translation>
 %1</source>
         <translation>Kan animatie niet laden:
 %1</translation>
+    </message>
+</context>
+<context>
+    <name>FileDataStream</name>
+    <message>
+        <source>End of file reached</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Flarm</name>
+    <message>
+        <source>None</source>
+        <translation type="unfinished">Geen</translation>
+    </message>
+    <message>
+        <source>Serial/USB/Bluetooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Network (TCP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmIdCheck</name>
+    <message>
+        <source>Clear the Flarm ID of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap the Flarm ID with %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ignore the conflict - automatic departures and landings may not work correctly</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Don&apos;t set a Flarm ID for this plane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep this plane&apos;s Flarm ID at its old value, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm ID conflict</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;b&gt;The entered Flarm ID, %1, is already used for the plane %2.&lt;/b&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmIdUpdate</name>
+    <message>
+        <source>Update Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Flarm ID cannot be update because this flight was not created automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Flarm ID cannot be update because this flight did not take place today.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Flarm ID cannot be updated because this flight does not have a plane.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Flarm ID of the plane of this flight is already current.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update Flarm ID?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The selected plane has no Flarm ID. This usually means that a Flarm has recently been installed in the plane. It could also mean that a wrong plane has been entered. Do you want to update the plane&apos;s Flarm ID in the database?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Flarm ID of the plane (%1) is different from the one of this flight (%2). This usually means that a new Flarm has been installed in the plane. It could also mean that a wrong plane has been entered. Do you want to update the plane&apos;s Flarm ID in the database?</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmMapWidget</name>
+    <message>
+        <source>Show images</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show circles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Me</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 km</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> N </source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmNetHandler</name>
+    <message>
+        <source>Importing canceled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importing of FlarmNet data was canceled. The FlarmNet data may be incomplete.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 FlarmNet record(s) were found.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source> Do you want to import the records into the database? This will remove all records and replace them with the new records.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source> Additionally, %1 invalid record(s) were found.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source> Do you want to import the records into the database? This will remove all records and replace them with the new records. The invalid entries will be ignored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import FlarmNet database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select .fln file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error opening file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Downloading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Importing FlarmNet database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error opening input file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error opening output file</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmNetRecord</name>
+    <message>
+        <source>FlarmNet record</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the FlarmNet record</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FlarmNet records</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmNetRecordModel</name>
+    <message>
+        <source>Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Registration</source>
+        <translation type="unfinished">Immatriculatie</translation>
+    </message>
+    <message>
+        <source>Callsign</source>
+        <translation type="unfinished">Wedstrijdnummer</translation>
+    </message>
+    <message>
+        <source>Owner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Airfield</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Model</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frequency</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmNetWindow</name>
+    <message>
+        <source>Created from FlarmNet record</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmNetWindowClass</name>
+    <message>
+        <source>FlarmNet database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter search text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear search text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished">...</translation>
+    </message>
+    <message>
+        <source>&amp;Create plane...</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmRecord::State</name>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On ground</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Departing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Approach</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flying near airfield</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Out of range</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmRecordModel</name>
+    <message>
+        <source>Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Registration</source>
+        <translation type="unfinished">Immatriculatie</translation>
+    </message>
+    <message>
+        <source>Altitude</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ground speed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vario</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmWindow</name>
+    <message>
+        <source>The current GPS time. May slightly differ from the system time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>KML file not specified</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You can specify a KML file to show map elements as lines (e. g. airfield boundaries, traffic circuit..) or points (e. g. hangars, buildings...). KML files can be created with Google Earth or Google Maps.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>KML file does not exist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The KML file specified in the settings does not exist:
+%1
+The file can be changed in the settings dialog.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>north</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>north-east</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>east</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>south-east</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>south</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>south-west</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>west</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>north-west</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No KML elements visible</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None of the elements read from the KML file are currently visible. The KML element closest to the current position is located %1 to the %2 of the current position.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None of the elements read from the KML file are currently visible.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No KML file specified  (&lt;a href=&quot;kmlFileNotSpecified&quot;&gt;details&lt;/a&gt;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The specified KML file does not exist (&lt;a href=&quot;kmlFileDoesNotExist&quot;&gt;details&lt;/a&gt;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The specified KML file could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The specified KML file could not be parsed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The specified KML file does not contain any elements</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None of the KML elements are visible (&lt;a href=&quot;noKmlElementsVisible&quot;&gt;details&lt;/a&gt;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No GPS data. The data from the KML file cannot be shown.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No GPS data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The own position is not visible (&lt;a href=&quot;resetPosition&quot;&gt;reset&lt;/a&gt;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 N</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 S</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 E</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 W</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, %2 (%3° %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlarmWindowClass</name>
+    <message>
+        <source>Flarm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Flarm map</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Map orientation:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>°</source>
+        <translation type="unfinished">°</translation>
+    </message>
+    <message>
+        <source>&amp;North</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Reverse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Left mouse button: scroll&lt;br/&gt;Middle mouse button: zoom/rotate&lt;br/&gt;Mouse wheel: zoom&lt;br/&gt;Alt + Mouse wheel: rotate&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Plane list</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1261,6 +1719,41 @@ Update de databank nu?</translation>
         <source>(Passenger)</source>
         <translation>(Passagier)</translation>
     </message>
+    <message>
+        <source>Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>FlightTableView</name>
+    <message>
+        <source>No flight selected</source>
+        <translation type="unfinished">Geen vlucht geselecteerd</translation>
+    </message>
+    <message>
+        <source>No flight is selected.</source>
+        <translation type="unfinished">Geen vlucht geselecteerd</translation>
+    </message>
+    <message>
+        <source>The flight has not departed yet.</source>
+        <translation type="unfinished">De vlucht is nog niet gestart.</translation>
+    </message>
+    <message>
+        <source>No towflight</source>
+        <translation type="unfinished">Geen sleepvlucht</translation>
+    </message>
+    <message>
+        <source>The flight does not depart here.</source>
+        <translation type="unfinished">De vlucht is niet hier gestart.</translation>
+    </message>
+    <message>
+        <source>The flight is neither a towflight nor a towed flight.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Towflight/towed flight not found</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>FlightWindow</name>
@@ -1570,7 +2063,7 @@ Toevoegen aan de databank?</translation>
     </message>
     <message>
         <source>&lt;html&gt;The registration of the plane (for airtows: the registration of the glider)&lt;/html&gt;</source>
-        <translation>&lt;html&gt;De registratie van het toestel (bij sleepvlucht: de registratie van de zwever)&lt;/html&gt;</translation>
+        <translation type="vanished">&lt;html&gt;De registratie van het toestel (bij sleepvlucht: de registratie van de zwever)&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Plane model:</source>
@@ -1598,11 +2091,11 @@ Toevoegen aan de databank?</translation>
     </message>
     <message>
         <source>&lt;html&gt;Local towflights land here. Leaving towflights land somewhere else.&lt;/html&gt;</source>
-        <translation>&lt;html&gt;Lokale sleepvlucht landen hier. Vertrekkende sleepvluchten landen ergens anders.&lt;/html&gt;</translation>
+        <translation type="vanished">&lt;html&gt;Lokale sleepvlucht landen hier. Vertrekkende sleepvluchten landen ergens anders.&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Num&amp;ber of landin&amp;gs:</source>
-        <translation>Aantal Landin&amp;gen:</translation>
+        <translation type="vanished">Aantal Landin&amp;gen:</translation>
     </message>
     <message>
         <source>Dat&amp;e:</source>
@@ -1751,7 +2244,7 @@ Toevoegen aan de databank?</translation>
     </message>
     <message>
         <source>&lt;html&gt;The landing location of the towplane, or the local airfield name for local towflights.&lt;/html&gt;</source>
-        <translation>&lt;html&gt;De landings locatie van het sleepvliegtuig, of de naam van het lokale vliegveld voor lokale sleepvluchten &lt;/html&gt;</translation>
+        <translation type="vanished">&lt;html&gt;De landings locatie van het sleepvliegtuig, of de naam van het lokale vliegveld voor lokale sleepvluchten &lt;/html&gt;</translation>
     </message>
     <message>
         <source>MM/dd/yyyy</source>
@@ -1760,6 +2253,53 @@ Toevoegen aan de databank?</translation>
     <message>
         <source>&amp;Errors:</source>
         <translation>&amp;Fouten:</translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;The registration of the plane (of the glider for airtows)&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;Local towflights depart and land here. Leaving towflights land somewhere else.&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;The departure location, or the local airfield name for local towflights.&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Num&amp;ber of landings:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try to find a plane matching this flight&apos;s Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update the Flarm ID of the plane</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>IconLabelClass</name>
+    <message>
+        <source>IconLabel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Icon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -2133,11 +2673,11 @@ Configuratie: %2</translation>
     </message>
     <message>
         <source>Startkladde</source>
-        <translation type="obsolete">Startplank</translation>
+        <translation type="vanished">Startplank</translation>
     </message>
     <message>
         <source>Flight log %1 - Startkladde</source>
-        <translation type="obsolete">Vluchtenlijst %1 - Startplank</translation>
+        <translation type="vanished">Vluchtenlijst %1 - Startplank</translation>
     </message>
     <message>
         <source>Today (%1)</source>
@@ -2268,20 +2808,12 @@ Configuratie: %2</translation>
         <translation>Geen vlucht geselecteerd</translation>
     </message>
     <message>
-        <source>Startkladde %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Flight log %1 - Startkladde %2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Either the selected flight is neither a towflight nor a towed flight, or it has not departed yet.</source>
-        <translation>De geselecteerde vlucht is noch een sleepvlucht, noch een gesleepte vlucht, of ze is nog niet opgestegen.</translation>
+        <translation type="vanished">De geselecteerde vlucht is noch een sleepvlucht, noch een gesleepte vlucht, of ze is nog niet opgestegen.</translation>
     </message>
     <message>
         <source>No towflight</source>
-        <translation>Geen sleepvlucht</translation>
+        <translation type="vanished">Geen sleepvlucht</translation>
     </message>
     <message>
         <source>Error</source>
@@ -2350,6 +2882,94 @@ Configuratie: %2</translation>
     <message>
         <source>The selected flight is a towflight. Towflights cannot be replicated.</source>
         <translation>De geselecteerde vlucht is een sleepvlucht. Sleepvluchten kunnen niet gedupliceerd worden</translation>
+    </message>
+    <message>
+        <source>Startkladde %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flight log %1 - Startkladde %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Viewing Flarm data is disabled. It can be enabled in the configuration.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No connection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Closed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connecting</source>
+        <translation type="unfinished">Verbinden</translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>reconnect in %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disabled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The connection encountered an error and will be reopened automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The connection encountered an error: %1. The connection will be reopened automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm connection error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time difference</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;System time: %1&lt;/p&gt;&lt;p&gt;GPS time: %2&lt;/p&gt;&lt;p&gt;The system time differs by %3 seconds from the GPS time.&lt;/p&gt;&lt;p&gt;Correction?&lt;/p&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>System time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The system time is correct</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Registration from FlarmNet: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The flight was departed automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The flight was created automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The flight was landed automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The flight performed a touch-and-go automatically</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -2424,7 +3044,7 @@ Configuratie: %2</translation>
     </message>
     <message>
         <source>De&amp;bug</source>
-        <translation>De&amp;bug</translation>
+        <translation type="vanished">De&amp;bug</translation>
     </message>
     <message>
         <source>&amp;Help</source>
@@ -2461,7 +3081,7 @@ Configuratie: %2</translation>
     </message>
     <message>
         <source>Change &amp;language</source>
-        <translation>Taal wijzigen</translation>
+        <translation type="vanished">Taal wijzigen</translation>
     </message>
     <message>
         <source>Ctrl+B</source>
@@ -2469,7 +3089,7 @@ Configuratie: %2</translation>
     </message>
     <message>
         <source>&amp;Timer-based language change</source>
-        <translation>Tijdgestuurde taalwijziging</translation>
+        <translation type="vanished">Tijdgestuurde taalwijziging</translation>
     </message>
     <message>
         <source>Ctrl+V</source>
@@ -2709,6 +3329,114 @@ Configuratie: %2</translation>
         <extracomment>Touch-and-go</extracomment>
         <translation>Ctrl+T</translation>
     </message>
+    <message>
+        <source>Flarm connection:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>D&amp;ebug</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fla&amp;rm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change lan&amp;guage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timer-&amp;based language change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set &amp;GPS time...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set GPS time from Flarm data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plane &amp;list...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm &amp;radar...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ctrl+F</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import FlarmNet database from &amp;file...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm&amp;Net overview...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ctrl+X</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inject Flarm &amp;departure</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inject Flarm &amp;landing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Inject Flarm &amp;touch and go</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download FlarmNet database from &amp;web...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look up &amp;plane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look up &amp;flight</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Identify plane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Update Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sho&amp;w notification for current flight</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show notification</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ctrl+W</source>
+        <translation type="unfinished">Ctrl+W</translation>
+    </message>
+    <message>
+        <source>Dec&amp;ode FlarmNet file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>E&amp;ncode FlarmNet file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Op&amp;en</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MetarPlugin</name>
@@ -2930,6 +3658,18 @@ Configuratie: %2</translation>
         <source>Ctrl+W</source>
         <extracomment>Close</extracomment>
         <translation>Ctrl+W</translation>
+    </message>
+    <message>
+        <source>Enter search text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear search text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>...</source>
+        <translation type="unfinished">...</translation>
     </message>
 </context>
 <context>
@@ -3304,6 +4044,10 @@ moet het databasepaswoord ingegeven worden.</translation>
         <source>ID</source>
         <translation>ID</translation>
     </message>
+    <message>
+        <source>Flarm ID</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PlaneEditorPane</name>
@@ -3386,6 +4130,65 @@ moet het databasepaswoord ingegeven worden.</translation>
         <source>?</source>
         <translation>?</translation>
     </message>
+    <message>
+        <source>&amp;Flarm ID:</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PlaneIdentification</name>
+    <message>
+        <source>Use plane?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane seems to be %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane seems to be a %1 with registration %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Do you want to replace the current plane with this plane?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> Do you want to use this plane?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Automatically create plane?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane was not found in the database. However, the FlarmNet database indicates that the registration of the plane might be %1. Do you want to create this plane?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane was not found in the database. However, the FlarmNet database indicates that the plane might be a %1 with registration %2. Do you want to create this plane?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Identify plane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane cannot be identified because this flight was not created automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane cannot be identified because this flight did not take place today.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane could not be identified.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plane is already current.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PlaneLog</name>
@@ -3455,6 +4258,13 @@ moet het databasepaswoord ingegeven worden.</translation>
     </message>
 </context>
 <context>
+    <name>PlotWidget</name>
+    <message>
+        <source>Ctrl: zoom only; Shift: rotate only</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Plugin</name>
     <message>
         <source>Select file</source>
@@ -3492,6 +4302,21 @@ moet het databasepaswoord ingegeven worden.</translation>
     </message>
 </context>
 <context>
+    <name>SerialDataStream</name>
+    <message>
+        <source>No port specified</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The port %1 does not exist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The port is no longer available</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Settings</name>
     <message>
         <source>Sunset:</source>
@@ -3525,12 +4350,8 @@ moet het databasepaswoord ingegeven worden.</translation>
         <translation>Zutendaal</translation>
     </message>
     <message>
-        <source>Weather radar (2 hours)</source>
-        <translation type="unfinished">Buienradar (3 uren) {2 ?}</translation>
-    </message>
-    <message>
         <source>Weather radar (3 hours)</source>
-        <translation type="obsolete">Buienradar (3 uren)</translation>
+        <translation>Buienradar (3 uren)</translation>
     </message>
 </context>
 <context>
@@ -3579,6 +4400,22 @@ can be changed, but to save them, the database
 password must be entered.</source>
         <translation>De instellingen zijn beveiligd. De instellingen kunnen gewijzigd worden
 maar om ze te saven moet het database paswoord ingegeven worden.</translation>
+    </message>
+    <message>
+        <source>%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select Flarm file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select KML file</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -3733,7 +4570,7 @@ maar om ze te saven moet het database paswoord ingegeven worden.</translation>
     </message>
     <message>
         <source>Re&amp;quire password to merge &amp;people</source>
-        <translation>Paswoord vereist om &amp;Personen samen te voegen</translation>
+        <translation type="vanished">Paswoord vereist om &amp;Personen samen te voegen</translation>
     </message>
     <message>
         <source>&lt;html&gt;If enabled, the database password must be entered to display the flight database.&lt;/html&gt;</source>
@@ -3741,7 +4578,7 @@ maar om ze te saven moet het database paswoord ingegeven worden.</translation>
     </message>
     <message>
         <source>Req&amp;uire password to display the &amp;flight database</source>
-        <translation>Paswoord is vereist om de vluchtendatabase te tonen.</translation>
+        <translation type="vanished">Paswoord is vereist om de vluchtendatabase te tonen.</translation>
     </message>
     <message>
         <source>&lt;html&gt;If enabled, the database password must be entered to view medical data.&lt;/html&gt;</source>
@@ -3951,6 +4788,118 @@ Directoryies can be absolute (e. g. /var/lib/startkladde/plugins or relative to 
         <source>Move selected plugin path down</source>
         <translation>Geselecteerd  plugin pad naar beneden verplaatsen</translation>
     </message>
+    <message>
+        <source>Re&amp;quire password to merge people</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Req&amp;uire password to display the flight database</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Flarm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;If enabled, Flarm related funktionality is availabe&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm &amp;enabled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;The name of a KML (Google Earth) file to show in the background of the flarm radar view&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;If enabled, data from the connected flarm device will be used to automatically detect departures, landings and touch-and-gos.&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Automatic detection of departures, landings and touch-and-gos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;If enabled, the Flarm radar and a list of received planes can be viewed.&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm data &amp;viewable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm radar &amp;KML file:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connection t&amp;ype:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ba&amp;ud rate:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Host:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1200</source>
+        <translation type="unfinished">1200</translation>
+    </message>
+    <message>
+        <source>2400</source>
+        <translation type="unfinished">2400</translation>
+    </message>
+    <message>
+        <source>4800</source>
+        <translation type="unfinished">4800</translation>
+    </message>
+    <message>
+        <source>9600</source>
+        <translation type="unfinished">9600</translation>
+    </message>
+    <message>
+        <source>19200</source>
+        <translation type="unfinished">19200</translation>
+    </message>
+    <message>
+        <source>38400</source>
+        <translation type="unfinished">38400</translation>
+    </message>
+    <message>
+        <source>57600</source>
+        <translation type="unfinished">57600</translation>
+    </message>
+    <message>
+        <source>115200</source>
+        <translation type="unfinished">115200</translation>
+    </message>
+    <message>
+        <source>Fil&amp;e name:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dela&amp;y:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt;html&gt;If enabled, the FlarmNet database may be used to automatically identify planes. Note that you will have to download a copy of the FlarmNet database for this to work.&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Flarm&amp;Net enabled</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>StatisticsWindow</name>
@@ -3965,6 +4914,10 @@ Directoryies can be absolute (e. g. /var/lib/startkladde/plugins or relative to 
     <message>
         <source>Launch method overview</source>
         <translation>Overzicht startwijzen</translation>
+    </message>
+    <message>
+        <source>Flarm overview</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -4266,51 +5219,51 @@ Database een referentielengtegraad opgegeven werd.</translation>
     <name>WetterOnlineAnimationPlugin</name>
     <message>
         <source>Wetter Online (animation)</source>
-        <translation type="obsolete">Wetter Online (Animatie)</translation>
+        <translation>Wetter Online (Animatie)</translation>
     </message>
     <message>
         <source>Displays a weather radar animation from wetteronline.de</source>
-        <translation type="obsolete">Toont een weerradar animatie van Wetteronline.de </translation>
+        <translation>Toont een weerradar animatie van Wetteronline.de </translation>
     </message>
     <message>
         <source>Downloading radar animation (1)...</source>
-        <translation type="obsolete">Radaranimatie downloaden (1)...</translation>
+        <translation>Radaranimatie downloaden (1)...</translation>
     </message>
     <message>
         <source>Error: no animation link was found on the navigation page</source>
-        <translation type="obsolete">Fout: er werd geen animatielink gevonden op de navigatie pagina</translation>
+        <translation>Fout: er werd geen animatielink gevonden op de navigatie pagina</translation>
     </message>
     <message>
         <source>Downloading radar animation (2)...</source>
-        <translation type="obsolete">Radaranimatie aan het downloaden (2)...</translation>
+        <translation>Radaranimatie aan het downloaden (2)...</translation>
     </message>
     <message>
         <source>Error: no animation was found on the weather page</source>
-        <translation type="obsolete">Fout: er werd geen animatielink gevonden op de meteo pagina</translation>
+        <translation>Fout: er werd geen animatielink gevonden op de meteo pagina</translation>
     </message>
     <message>
         <source>Downloading radar animation (3)...</source>
-        <translation type="obsolete">Radaranimatie aan het downloaden (3)...</translation>
+        <translation>Radaranimatie aan het downloaden (3)...</translation>
     </message>
     <message>
         <source>Saving radar animation</source>
-        <translation type="obsolete">Radaranimatie aan het saven</translation>
+        <translation>Radaranimatie aan het saven</translation>
     </message>
     <message>
         <source>Error reading the animation</source>
-        <translation type="obsolete">Fout bij het lezen van de animatie</translation>
+        <translation>Fout bij het lezen van de animatie</translation>
     </message>
     <message>
         <source>Error: navigation page not found (404)</source>
-        <translation type="obsolete">Fout: Navigatiepagina niet gevonden (404)</translation>
+        <translation>Fout: Navigatiepagina niet gevonden (404)</translation>
     </message>
     <message>
         <source>Error: radar page not found (404)</source>
-        <translation type="obsolete">Fout: radarpagina niet gevonden (404)</translation>
+        <translation>Fout: radarpagina niet gevonden (404)</translation>
     </message>
     <message>
         <source>Error: radar animation not found (404)</source>
-        <translation type="obsolete">Fout: radaranimatie niet gevonden (404)</translation>
+        <translation>Fout: radaranimatie niet gevonden (404)</translation>
     </message>
 </context>
 <context>

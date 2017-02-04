@@ -5,39 +5,74 @@
 #include "src/model/Flight.h"
 #include "src/db/cache/Cache.h"
 #include "src/model/LaunchMethod.h"
+#include "src/FlightReference.h"
 
-FlightProxyList::FlightProxyList (Cache &cache, AbstractObjectList<Flight> &sourceModel, QObject *parent):
+FlightProxyList::FlightProxyList (Cache &cache, QObject *parent):
 	AbstractObjectList<Flight> (parent),
 	cache (cache),
-	sourceModel (sourceModel)
+	_sourceModel (NULL)
 {
 	// TODO: if there is no self launch method, the flight will be red
 	// in the table, but not show an error in the editor (no longer true?)
 
-	// Some signals from the source model can be re-emitted without change
-#define reemitSignal(signal) do { QObject::connect (&sourceModel, SIGNAL (signal), this, SIGNAL (signal)); } while (0)
-	reemitSignal (columnsAboutToBeInserted (const QModelIndex &, int, int));
-	reemitSignal (columnsAboutToBeRemoved (const QModelIndex &, int, int));
-	reemitSignal (columnsInserted (const QModelIndex &, int, int));
-	reemitSignal (columnsRemoved (const QModelIndex &, int, int));
-	reemitSignal (headerDataChanged (Qt::Orientation, int, int));
-	reemitSignal (layoutAboutToBeChanged ());
-	reemitSignal (layoutChanged ());
-	reemitSignal (modelAboutToBeReset ());
-#undef reemitSignal
-
-#define receiveSignal(signal) do {QObject::connect (&sourceModel, SIGNAL (signal), this, SLOT (sourceModel_ ## signal)); } while (0)
-	receiveSignal (dataChanged (const QModelIndex &, const QModelIndex &));
-	receiveSignal (modelReset ());
-	receiveSignal (rowsAboutToBeInserted (const QModelIndex &, int, int));
-	receiveSignal (rowsAboutToBeRemoved (const QModelIndex &, int, int));
-	receiveSignal (rowsInserted (const QModelIndex &, int, int));
-	receiveSignal (rowsRemoved (const QModelIndex &, int, int));
-#undef receiveSignal
 }
 
 FlightProxyList::~FlightProxyList ()
 {
+}
+
+
+// ***********
+// ** Model **
+// ***********
+
+void FlightProxyList::connectSourceModel (AbstractObjectList<Flight> *sourceModel)
+{
+	// Some signals from the source model can be re-emitted without change
+#define reemitSignal(signal) do { QObject::connect (sourceModel, SIGNAL (signal), this, SIGNAL (signal)); } while (0)
+	reemitSignal (columnsAboutToBeInserted (const QModelIndex &, int, int));
+	reemitSignal (columnsAboutToBeRemoved  (const QModelIndex &, int, int));
+	reemitSignal (columnsInserted          (const QModelIndex &, int, int));
+	reemitSignal (columnsRemoved           (const QModelIndex &, int, int));
+	reemitSignal (headerDataChanged (Qt::Orientation, int, int));
+	reemitSignal (layoutAboutToBeChanged ());
+	reemitSignal (layoutChanged ());
+#undef reemitSignal
+
+#define receiveSignal(signal) do {QObject::connect (sourceModel, SIGNAL (signal), this, SLOT (sourceModel_ ## signal)); } while (0)
+	receiveSignal (dataChanged (const QModelIndex &, const QModelIndex &));
+	receiveSignal (modelAboutToBeReset ());
+	receiveSignal (modelReset ());
+	receiveSignal (rowsAboutToBeInserted (const QModelIndex &, int, int));
+	receiveSignal (rowsAboutToBeRemoved  (const QModelIndex &, int, int));
+	receiveSignal (rowsInserted          (const QModelIndex &, int, int));
+	receiveSignal (rowsRemoved           (const QModelIndex &, int, int));
+#undef receiveSignal
+}
+
+void FlightProxyList::setSourceModel (AbstractObjectList<Flight> *sourceModel)
+{
+	if (_sourceModel==sourceModel)
+		return;
+
+	// Disconnect the old source model's signals
+	if (_sourceModel)
+		_sourceModel->disconnect (this);
+
+	// Store the new source model
+	_sourceModel=sourceModel;
+
+	// Connect the new source model's signals
+	connectSourceModel (sourceModel);
+
+	// Clear internal data and notify views
+	sourceModel_modelAboutToBeReset ();
+	sourceModel_modelReset ();
+}
+
+void FlightProxyList::sourceModel_destroyed ()
+{
+	_sourceModel=NULL;
 }
 
 
@@ -46,6 +81,13 @@ FlightProxyList::~FlightProxyList ()
 // **************************
 
 // TODO should be in Flight
+// TODO This also adds towflights for prepared flights with an airtow launch
+// method. Do we want that? Note that they are filtered out in the
+// FlightSortFilterProxyModel, but we still find a towref for them. This stinks.
+// One thing to consider is that we'll want to split the flight and the
+// towflight in the database some time. In that case, we'll have to create them
+// together (so we can store the pilot's name), so there are actually prepared
+// towflights.
 bool FlightProxyList::isAirtow (const Flight &flight, LaunchMethod *launchMethod) const
 {
 	// No launch method => no airtow
@@ -63,6 +105,8 @@ bool FlightProxyList::isAirtow (const Flight &flight, LaunchMethod *launchMethod
 		// Launch method not found => no airtow
 		return false;
 	}
+
+	return false;
 }
 
 void FlightProxyList::addTowflightFor (const Flight &flight, const LaunchMethod &launchMethod)
@@ -116,8 +160,11 @@ void FlightProxyList::updateTowflight (dbId id, int towflightIndex)
  */
 int FlightProxyList::findFlight (dbId id) const
 {
-	for (int i=0; i<sourceModel.size (); ++i)
-		if (sourceModel.at (i).getId ()==id)
+	if (!_sourceModel)
+		return -1;
+
+	for (int i=0; i<_sourceModel->size (); ++i)
+		if (_sourceModel->at (i).getId ()==id)
 			return i;
 
 	return -1;
@@ -139,7 +186,10 @@ int FlightProxyList::findTowflight (dbId id) const
 
 bool FlightProxyList::modelIndexIsFlight (int index) const
 {
-	return index<sourceModel.size ();
+	if (!_sourceModel)
+		return false;
+
+	return index<_sourceModel->size ();
 }
 
 bool FlightProxyList::modelIndexIsTowflight (int index) const
@@ -150,18 +200,24 @@ bool FlightProxyList::modelIndexIsTowflight (int index) const
 
 int FlightProxyList::towflightIndexToModelIndex (int towflightIndex) const
 {
+	if (!_sourceModel)
+		return -1;
+
 	if (towflightIndex<0)
 		return -1;
 
-	return towflightIndex+sourceModel.size ();
+	return towflightIndex+_sourceModel->size ();
 }
 
 int FlightProxyList::modelIndexToTowflightIndex (int modelIndex) const
 {
+	if (!_sourceModel)
+		return -1;
+
 	if (modelIndex<0)
 		return -1;
 
-	return modelIndex-sourceModel.size ();
+	return modelIndex-_sourceModel->size ();
 }
 
 /**
@@ -195,18 +251,35 @@ int FlightProxyList::findTowref (int index) const
 	}
 }
 
-int FlightProxyList::modelIndexFor (dbId id, bool towflight) const
+int FlightProxyList::findModelIndex (const FlightReference &flight) const
 {
-	if (towflight)
+	if (!flight.isValid ())
+		return -1;
+
+	if (flight.towflight ())
 	{
-		int towflightIndex=findTowflight (id);
+		int towflightIndex=findTowflight (flight.id ());
 		return towflightIndexToModelIndex (towflightIndex); // Handles <0
 	}
 	else
 	{
-		int flightIndex=findFlight (id);
+		int flightIndex=findFlight (flight.id ());
 		return flightIndexToModelIndex (flightIndex); // Handles <0
 	}
+}
+
+//Maybe<Flight> FlightProxyList::findFlight (const FlightReference &flight) const
+//{
+//	int modelIndex=findModelIndex (flight);
+//	return at (modelIndex);
+//}
+
+FlightReference FlightProxyList::getFlightReference (int modelIndex) const
+{
+	if (modelIndex<0)
+		return FlightReference::invalid;
+
+	return FlightReference (at (modelIndex));
 }
 
 
@@ -218,25 +291,34 @@ int FlightProxyList::modelIndexFor (dbId id, bool towflight) const
 
 int FlightProxyList::size () const
 {
-	return sourceModel.size ()+towflights.size ();
+	if (!_sourceModel)
+		return 0;
+
+	return _sourceModel->size ()+towflights.size ();
 }
 
+// TODO return Maybe<Flight>, and check for _sourceModel!=NULL
 const Flight &FlightProxyList::at (int index) const
 {
-	int numFlights=sourceModel.size ();
+	assert (_sourceModel);
+
+	int numFlights=_sourceModel->size ();
 
 	if (index<numFlights)
-		return sourceModel.at (index);
+		return _sourceModel->at (index);
 	else
 		return towflights.at (modelIndexToTowflightIndex (index));
 }
 
 QList<Flight> FlightProxyList::getList () const
 {
-	QList<Flight> result;
+	if (!_sourceModel)
+		return QList<Flight> ();
 
-	return sourceModel.getList () + towflights;
+	return _sourceModel->getList () + towflights;
 }
+
+
 
 // ************************
 // ** Source model slots **
@@ -246,6 +328,9 @@ QList<Flight> FlightProxyList::getList () const
 
 void FlightProxyList::sourceModel_dataChanged (const QModelIndex &topLeft, const QModelIndex &bottomRight)
 {
+	if (!_sourceModel)
+		return;
+
 	// Emit the change signal for the flight
 	emit dataChanged (topLeft, bottomRight);
 
@@ -253,12 +338,12 @@ void FlightProxyList::sourceModel_dataChanged (const QModelIndex &topLeft, const
 	// a change signal for the towflight
 	for (int i=topLeft.row (); i<=bottomRight.row (); ++i)
 	{
-		const Flight &flight=sourceModel.at (i);
+		const Flight &flight=_sourceModel->at (i);
 		dbId id=flight.getId ();
 
 		// Determine the launch method and whether the flight is an airtow
 		LaunchMethod launchMethod;
-		bool flightIsAirtow=isAirtow (sourceModel.at (i), &launchMethod);
+		bool flightIsAirtow=isAirtow (_sourceModel->at (i), &launchMethod);
 
 		// We may or may not have a towflight with that ID, regardless of
 		// whether the flight is an airtow, because that may have changed.
@@ -309,18 +394,25 @@ void FlightProxyList::sourceModel_dataChanged (const QModelIndex &topLeft, const
 	}
 }
 
+void FlightProxyList::sourceModel_modelAboutToBeReset ()
+{
+	beginResetModel ();
+	towflights.clear ();
+}
+
 void FlightProxyList::sourceModel_modelReset ()
 {
-	towflights.clear ();
+	if (_sourceModel)
+	{
+		LaunchMethod launchMethod;
 
-	LaunchMethod launchMethod;
+		const QList<Flight> flights=_sourceModel->getList ();
+		foreach (const Flight &flight, flights)	// For each flight in the source model
+			if (isAirtow (flight, &launchMethod))	// Is it an airtow?
+				addTowflightFor (flight, launchMethod);	// Add the towflight to the towflight list (don't notify listeners, we'll reset later)
+	}
 
-	const QList<Flight> flights=sourceModel.getList ();
-	foreach (const Flight &flight, flights)	// For each flight in the source model
-		if (isAirtow (flight, &launchMethod))	// Is it an airtow?
-			addTowflightFor (flight, launchMethod);	// Add the towflight to the towflight list (don't notify listeners, we'll reset later)
-
-	reset ();
+	endResetModel ();
 }
 
 void FlightProxyList::sourceModel_rowsAboutToBeInserted (const QModelIndex &parent, int start, int end)
@@ -330,6 +422,9 @@ void FlightProxyList::sourceModel_rowsAboutToBeInserted (const QModelIndex &pare
 
 void FlightProxyList::sourceModel_rowsAboutToBeRemoved (const QModelIndex &parent, int start, int end)
 {
+	if (!_sourceModel)
+		return;
+
 	// Flights will be removed. Remove the corresponding towflights, if there
 	// are any.
 	// We have to remove the towflights in rowsAboutToBeRemoved, because in
@@ -341,7 +436,7 @@ void FlightProxyList::sourceModel_rowsAboutToBeRemoved (const QModelIndex &paren
 	for (int i=start; i<=end; ++i)
 	{
 		// The towflight has the same ID as the flight
-		dbId id=sourceModel.at (i).getId ();
+		dbId id=_sourceModel->at (i).getId ();
 
 		int towflightIndex=findTowflight (id);
 		if (towflightIndex>=0)
@@ -362,12 +457,15 @@ void FlightProxyList::sourceModel_rowsAboutToBeRemoved (const QModelIndex &paren
 
 void FlightProxyList::sourceModel_rowsInserted (const QModelIndex &parent, int start, int end)
 {
+	if (!_sourceModel)
+		return;
+
 	endInsertRows ();
 
 	// Iterate over the inserted flights, adding the corresponding towflights.
 	for (int i=start; i<=end; ++i)
 	{
-		const Flight &flight=sourceModel.at (i);
+		const Flight &flight=_sourceModel->at (i);
 
 		LaunchMethod launchMethod;
 		if (isAirtow (flight, &launchMethod))

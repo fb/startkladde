@@ -44,6 +44,7 @@ class CacheWorker: public QObject
 		void refreshPlanes        (Returner<void> &returner, OperationMonitor &monitor);
 		void refreshFlights       (Returner<void> &returner, OperationMonitor &monitor);
 		void refreshLaunchMethods (Returner<void> &returner, OperationMonitor &monitor);
+		void refreshFlarmNetRecords (Returner<void> &returner, OperationMonitor &monitor);
 
 		template<class T> void refreshObjects (Returner<void> &returner, OperationMonitor &monitor);
 
@@ -54,6 +55,7 @@ class CacheWorker: public QObject
 		void sig_refreshPlanes        (Returner<void> *returner, OperationMonitor *monitor);
 		void sig_refreshFlights       (Returner<void> *returner, OperationMonitor *monitor);
 		void sig_refreshLaunchMethods (Returner<void> *returner, OperationMonitor *monitor);
+		void sig_refreshFlarmNetRecords (Returner<void> *returner, OperationMonitor *monitor);
 
 	protected slots:
 		virtual void slot_refreshAll           (Returner<void> *returner, OperationMonitor *monitor);
@@ -62,6 +64,7 @@ class CacheWorker: public QObject
 		virtual void slot_refreshPlanes        (Returner<void> *returner, OperationMonitor *monitor);
 		virtual void slot_refreshFlights       (Returner<void> *returner, OperationMonitor *monitor);
 		virtual void slot_refreshLaunchMethods (Returner<void> *returner, OperationMonitor *monitor);
+		virtual void slot_refreshFlarmNetRecords (Returner<void> *returner, OperationMonitor *monitor);
 
 	private:
 		QThread thread;

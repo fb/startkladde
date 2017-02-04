@@ -26,6 +26,8 @@ class Person: public Entity
 
 				void setDisplayMedicalData (bool displayMedicalData);
 
+				int medicalColumn () const;
+
 			private:
 				bool displayMedicalData;
 		};

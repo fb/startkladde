@@ -12,7 +12,7 @@
  *     - in determineFlight, if the entry is unknown, use the original value
  *     - in updateErrors, addObject as non-error
  *     - in checkFlightPhase1, exclude from error check
- *   - TODO Make sure modless dialogs work (and control returns immediately)
+ *   - TODO Make sure modeless dialogs work (and control returns immediately)
  *   - TODO Handle simultaneous flight editing and manipulation from main window
  *   - TODO Do we need to check the desktop size?
  *     (QApplication::desktop ())->availableGeometry ().height ()
@@ -22,7 +22,7 @@
  *   - TODO Partial names working? Especially: error display
  *   - TODO in updateErrors, set the focus to the uppermost error widget, not the
  *     first one found
- *   - TODO in updateErrors, the highlighed labels for person errors may be last
+ *   - TODO in updateErrors, the highlighted labels for person errors may be last
  *     name, first name, or person
  *   - TODO make time zone safe
  *   - TODO determinePerson: preselection based on the club of the plane or student
@@ -44,7 +44,7 @@
  *     fields are equal. Does it matter that the flight already has values for
  *     these fields when editing?
  *     One implication is that the mode is not sufficient to determine whether
- *     the button should be "depart now" or "land now", resp. later.
+ *     the button should be "depart now" or "land now", respectively later.
  *     Note that create mode *is* different from edit mode, for example the
  *     automatic selection of launch method/departure locations.
  *   - Add a calendar to the date input
@@ -60,7 +60,7 @@
  *   - If the plane is unknown and the user aborts, set the focus to the
  *     appropriate registration input
  *   - For the error checking on accepting a flight, use the error checking
- *     method provieded by the Flight class (probably not all errors can be
+ *     method provided by the Flight class (probably not all errors can be
  *     checked that way).
  *   - On editing, addObject a currently-flying test, at least for the case where
  *     a departure time has been added
@@ -164,6 +164,10 @@ class FlightWindow: public SkDialog<Ui::FlightWindowClass>
 
 		// *** Properties
 		dbId getEditedId () { return originalFlightId; }
+
+	signals:
+		void flightDeparted (dbId id);
+		void flightLanded   (dbId id);
 
 	protected:
 		void setupTitle ();
@@ -301,6 +305,7 @@ class FlightWindow: public SkDialog<Ui::FlightWindowClass>
 		bool checkBuffer ();
 
 		bool writeToDatabase (Flight &flight);
+		bool updateFlarmId (const Flight & flight);
 
 		// *** Input field setup
 		void  enableWidget (QWidget *widget, bool  enabled);
@@ -435,6 +440,8 @@ class FlightWindow: public SkDialog<Ui::FlightWindowClass>
 		void updateErrors (bool setFocus=false);
 		QWidget *getErrorWidget (Flight::Error error);
 
+		// Flarm
+		void identifyPlane (const Flight &flight);
 
 		// In create mode, we have "Automatic" checkboxes which deativate the
 		// input fields, so they are active if the checkbox is not checked. In edit

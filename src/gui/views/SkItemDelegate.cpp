@@ -36,3 +36,11 @@ void SkItemDelegate::paint (QPainter *painter, const QStyleOptionViewItem &optio
 		QItemDelegate::paint (painter, option, index);
 	}
 }
+
+// TODO make configurable
+void SkItemDelegate::drawFocus(QPainter *painter, const QStyleOptionViewItem &option, const QRect &rect) const
+{
+	Q_UNUSED (painter);
+	Q_UNUSED (option);
+	Q_UNUSED (rect);
+}

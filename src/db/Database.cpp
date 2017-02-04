@@ -25,6 +25,7 @@
 #include "src/model/Plane.h"
 #include "src/model/Flight.h"
 #include "src/model/LaunchMethod.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h"
 #include "src/util/qString.h"
 #include "src/util/qList.h"
 #include "src/db/Query.h"
@@ -373,5 +374,6 @@ INSTANTIATE_TEMPLATES (Person      )
 INSTANTIATE_TEMPLATES (Plane       )
 INSTANTIATE_TEMPLATES (Flight      )
 INSTANTIATE_TEMPLATES (LaunchMethod)
+INSTANTIATE_TEMPLATES (FlarmNetRecord)
 
 #undef INSTANTIATE_TEMPLATES

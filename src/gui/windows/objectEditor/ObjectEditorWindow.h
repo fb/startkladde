@@ -42,6 +42,7 @@ template<class T> class ObjectEditorWindow: public ObjectEditorWindowBase
 		// Invocation
 		static dbId createObject (QWidget *parent, DbManager &manager, ObjectEditorPaneData *paneData=NULL);
 		static dbId createObject (QWidget *parent, DbManager &manager, const T &nameObject, ObjectEditorPaneData *paneData=NULL);
+		static dbId createObjectPreset (QWidget *parent, DbManager &manager, const T &preset, ObjectEditorPaneData *paneData=NULL, T *target=NULL);
 		static void displayObject (QWidget *parent, DbManager &manager, const T &object, ObjectEditorPaneData *paneData=NULL);
 		static int editObject (QWidget *parent, DbManager &manager, const T &object, ObjectEditorPaneData *paneData=NULL);
 
@@ -71,7 +72,7 @@ template<class T> ObjectEditorWindow<T>::ObjectEditorWindow (Mode mode, DbManage
 	ObjectEditorWindowBase (manager, parent, flags),
 	mode (mode)
 {
-	editorPane = ObjectEditorPane<T>::create (mode, manager.getCache (), ui.objectEditorPane, paneData);
+	editorPane = ObjectEditorPane<T>::create (mode, manager, ui.objectEditorPane, paneData);
 	ui.objectEditorPane->layout ()->addWidget (editorPane);
 
 	switch (mode)
@@ -94,7 +95,7 @@ template<class T> ObjectEditorWindow<T>::ObjectEditorWindow (Mode mode, DbManage
 
 template<class T> ObjectEditorWindow<T>::~ObjectEditorWindow ()
 {
-		std::cout << notr ("ObjectEditorWindow being deleted") << std::endl;
+//		std::cout << notr ("ObjectEditorWindow being deleted") << std::endl;
 }
 
 
@@ -126,6 +127,24 @@ template<class T> dbId ObjectEditorWindow<T>::createObject (QWidget *parent, DbM
 
 	if (w.exec ()==QDialog::Accepted)
 		return w.getId ();
+	else
+		return invalidId;
+}
+
+template<class T> dbId ObjectEditorWindow<T>::createObjectPreset (QWidget *parent, DbManager &manager, const T &preset, ObjectEditorPaneData *paneData, T *target)
+{
+	// Note that we cannot use WA_DeleteOnClose here because we need to read the
+	// ID from w after it has been closed.
+	ObjectEditorWindow<T> w (modeCreate, manager, parent, 0, paneData);
+
+	w.editorPane->setObject (preset);
+
+	if (w.exec ()==QDialog::Accepted)
+	{
+		// Get the object without performing the checks again (the API stinks)
+		if (target) (*target)=w.editorPane->determineObject (false);
+		return w.getId ();
+	}
 	else
 		return invalidId;
 }
@@ -206,7 +225,7 @@ template<class T> void ObjectEditorWindow<T>::on_buttonBox_accepted ()
 	// The OK button was pressed. Check and store the object.
 	try
 	{
-		T object=editorPane->determineObject ();
+		T object=editorPane->determineObject (true);
 		if (writeToDatabase (object))
 		{
 			//std::cout << "after writeToDatabase, right before accept, id is " << getId () << std::endl;

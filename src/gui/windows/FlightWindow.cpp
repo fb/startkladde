@@ -7,6 +7,7 @@
 #include <QShowEvent>
 #include <QPushButton>
 #include <QDesktopWidget>
+#include <QMenu>
 
 #include "src/util/color.h"
 #include "src/text.h"
@@ -24,6 +25,10 @@
 #include "src/db/DbManager.h"
 #include "src/logging/messages.h"
 #include "src/i18n/notr.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h"
+#include "src/flarm/algorithms/PlaneIdentification.h"
+#include "src/gui/windows/objectEditor/PlaneEditorPane.h"
+#include "src/flarm/algorithms/FlarmIdUpdate.h"
 #include "src/gui/PasswordCheck.h"
 #include "src/gui/PasswordPermission.h"
 #include "src/gui/windows/objectEditor/PersonEditorPane.h"
@@ -65,7 +70,10 @@
  *     checking, the values are always read from the input widgets.
  */
 
-//using namespace std;
+// TODO:
+//   * we should have a way to perform plane identification (and potentially
+//     Flarm ID update) from this window, for example by a button that opens a
+//     menu next to the registration field
 
 // ***************
 // ** Constants **
@@ -503,6 +511,7 @@ FlightWindow *FlightWindow::editFlight (QWidget *parent, DbManager &manager, Fli
 	w->flightToFields (flight, false);
 
 	w->updateSetup ();
+	w->identifyPlane (flight);
 	w->updateErrors (true);
 
 	w->show ();
@@ -884,6 +893,7 @@ Flight FlightWindow::determineFlightBasic () throw ()
 
 	// Some of the data is taken from the stored data
 	flight.setId (originalFlightId);
+	flight.setFlarmId     (originalFlight.getFlarmId());
 	flight.setPlaneId     (isRegistrationActive         ()?selectedPlane   :invalidId);
 	flight.setTowplaneId  (isTowplaneRegistrationActive ()?selectedTowplane:invalidId);
 	flight.setPilotId     (isPilotActive                ()?selectedPilot   :invalidId);
@@ -1289,6 +1299,10 @@ Flight FlightWindow::determineFlight (bool departNow)
 
 		checkFlightPhase3 (flight, departNow, plane, pilot, copilot, towpilot);
 
+		// If the flight is prepared, clear its Flarm ID.
+		if (flight.isPrepared ())
+			flight.setFlarmId ("");
+
 		return flight;
 	}
 	catch (...)
@@ -1375,10 +1389,17 @@ dbId FlightWindow::determinePlane (QString registration, QString description, QW
 
 	if (yesNoQuestion (this, title, question))
 	{
-		Plane nameObject;
-		nameObject.registration=registration.toUpper ();
+		Plane plane;
+		plane.registration=registration.toUpper ();
+		plane.flarmId=originalFlight.getFlarmId ();
 
-		dbId result=ObjectEditorWindow<Plane>::createObject (this, manager, nameObject);
+		PlaneEditorPaneData paneData;
+		paneData.registrationReadOnly=true;
+		paneData.flarmIdReadOnly=!isBlank (plane.flarmId);
+
+		dbId result=ObjectEditorWindow<Plane>::createObjectPreset (this,
+			manager, plane, &paneData, NULL);
+
 		if (idValid (result))
 			return result;
 		else
@@ -1708,6 +1729,13 @@ void FlightWindow::cacheChanged (DbEvent event)
 				// automatically on user input
 				on_towflightLandingLocationInput_editingFinished (newFlight.getTowflightLandingLocation ());
 			}
+
+			// Number of landings changed
+			if (newFlight.getNumLandings ()!=originalFlight.getNumLandings ())
+			{
+				ui.numLandingsInput->setValue (newFlight.getNumLandings ());
+				originalFlight.setNumLandings (newFlight.getNumLandings ());
+			}
 		}
 		else if (event.getType ()==DbEvent::typeDelete)
 		{
@@ -1721,6 +1749,10 @@ void FlightWindow::cacheChanged (DbEvent event)
 bool FlightWindow::writeToDatabase (Flight &flight)
 {
 	bool success=false;
+
+	// User canceled a Flarm ID dialog
+	if (!updateFlarmId (flight))
+		return false;
 
 	switch (mode)
 	{
@@ -2184,9 +2216,12 @@ void FlightWindow::okButton_clicked()
 
 	try
 	{
-		Flight flight=determineFlight (false);
+		Flight flight = determineFlight (false);
+
 		if (writeToDatabase (flight))
+		{
 			accept (); // Close the dialog
+		}
 	}
 	catch (AbortedException &e)
 	{
@@ -2202,13 +2237,19 @@ void FlightWindow::nowButton_clicked ()
 
 		// If we are not in create mode, the date is not today or the auto
 		// fields are not checked, the button is not visible at all.
-		if (currentDepartsHere ())
-			flight.departNow (true);
-		else
-			flight.landNow (true);
+		bool departNow=currentDepartsHere ();
+		bool landNow  =!departNow;
+
+		if (departNow) flight.departNow (true);
+		if (landNow)   flight.landNow   (true);
 
 		if (writeToDatabase (flight))
+		{
+			if (departNow) emit flightDeparted (flight.getId ());
+			if (landNow  ) emit flightLanded   (flight.getId ());
 			accept (); // Close the dialog
+
+		}
 	}
 	catch (AbortedException &e)
 	{
@@ -2233,3 +2274,51 @@ void FlightWindow::languageChanged ()
 	updateSetupButtons ();
 }
 
+
+// ***********
+// ** Flarm **
+// ***********
+
+void FlightWindow::identifyPlane (const Flight &flight)
+{
+	// Only do this if the flight has been created automatically
+	if (flight.getFlarmId ().isEmpty ())
+		return;
+
+	// Only do this if the flight does not have a plane
+	if (idValid (flight.getPlaneId ()))
+		return;
+
+	// Try to identify the plane, letting the user choose or create the plane
+	// if necessary.
+	PlaneIdentification planeIdentification (manager, this);
+	dbId identifiedPlaneId=planeIdentification.interactiveIdentifyPlane (flight, false);
+
+	if (idValid (identifiedPlaneId) && identifiedPlaneId!=flight.getPlaneId ())
+	{
+		// We identified a plane. Use it.
+		try
+		{
+			// Store it
+			selectedPlane=identifiedPlaneId;
+
+			planeToFields (identifiedPlaneId, ui.registrationInput, ui.planeTypeLabel);
+			// TODO what about updateErrors etc.? See on_registrationInput_editingFinished
+		}
+		catch (Cache::NotFoundException &) {}
+	}
+}
+
+bool FlightWindow::updateFlarmId (const Flight &flight)
+{
+	// This only applies to automatically created flights with a valid plane
+	if (flight.getFlarmId ().isEmpty ())
+		return true;
+
+	if (!idValid (flight.getPlaneId ()))
+		return true;
+
+	// OK, update
+	FlarmIdUpdate flarmIdUpdate (manager, this);
+	return flarmIdUpdate.interactiveUpdateFlarmId (flight, false, originalFlight.getPlaneId ());
+}

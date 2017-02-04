@@ -1,7 +1,3 @@
-# TODO: we should include the full version (with -r1234 or -svn) in the package
-# file name. Note that generateSvnHeader.cmake is not included in this file, so
-# we'll need to perform the detection separately.
-
 ##############
 ## Settings ##
 ##############
@@ -58,12 +54,28 @@ FIND_PACKAGE (Qt4       REQUIRED)
 FIND_PACKAGE (MySQL 5.0 REQUIRED)
 FIND_PACKAGE (Acpi              )
 FIND_PACKAGE (Ruby      REQUIRED)
+#FIND_PACKAGE (Qwt6	        REQUIRED)
 
 # Setup the Qt library
 SET(QT_USE_QTSQL     TRUE)
+SET(QT_USE_QTXML     TRUE)
 SET(QT_USE_QTNETWORK TRUE)
 
 set(CMAKE_AUTOMOC TRUE)
+
+#string(REPLACE "qwt.dll" "qwtd.dll" Qwt6_Qt4_DEBUG_LIBRARY ${Qwt6_Qt4_LIBRARY})
+#if(NOT Qwt6_FOUND)
+#    message(STATUS "Qwt6 not found! Disabling plotting support!")
+#else()
+#    message(STATUS "Qwt6 available at: ${Qwt6_INCLUDE_DIR} ${Qwt6_Qt4_LIBRARY}")
+#    include_directories(${Qwt6_INCLUDE_DIR})
+#    
+#    IF(CMAKE_BUILD_TYPE MATCHES "Debug")
+#		link_libraries(${Qwt6_Qt4_DEBUG_LIBRARY})
+#	ELSE ()
+#    	link_libraries(${Qwt6_Qt4_LIBRARY})
+#	ENDIF()
+#endif()
 
 # For gcc and release mode, enable some options that make the binary smaller
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -109,6 +121,10 @@ if (${ACPI_FOUND})
 else ()
 	SET (AcpiWidget dummy)
 endif ()
+
+# Serial
+# FIXME! release library
+#SET (libs ${libs} ${QT_LIBRARY_DIR}/libSerialPortd0.a)
 
 # Tweak source lists
 LIST (REMOVE_ITEM startkladde_SOURCES src/gui/widgets/AcpiWidget_libacpi.cpp)
@@ -159,9 +175,21 @@ if (WIN32 AND QT_BINARY_DIR AND MYSQL_INCLUDE_DIR)
 	copy_library (${QT_BINARY_DIR} QtCore4.dll)
 	copy_library (${QT_BINARY_DIR} QtGui4.dll)
 	copy_library (${QT_BINARY_DIR} QtSql4.dll)
+	copy_library (${QT_BINARY_DIR} QtXml4.dll)
 	copy_library (${QT_BINARY_DIR} QtNetwork4.dll)
 
 	copy_library (${MYSQL_LIBRARY_DIR} libmysql.dll)
+
+#	# TODO should not be hardcoded
+#    IF(CMAKE_BUILD_TYPE MATCHES "Debug")
+#		message (STATUS "Copying library ${Qwt6_Qt4_DEBUG_LIBRARY}")
+#		file (COPY ${Qwt6_Qt4_DEBUG_LIBRARY} DESTINATION ${PROJECT_BINARY_DIR})
+#		set (INSTALL_LIBS ${INSTALL_LIBS} qwtd.dll)
+#	ELSE ()
+#		message (STATUS "Copying library ${Qwt6_Qt4_LIBRARY}")
+#		file (COPY ${Qwt6_Qt4_LIBRARY} DESTINATION ${PROJECT_BINARY_DIR})
+#		set (INSTALL_LIBS ${INSTALL_LIBS} qwt.dll)
+#	ENDIF()
 
 	file (COPY ${QT_PLUGINS_DIR}/sqldrivers/qsqlmysql4.dll DESTINATION ${PROJECT_BINARY_DIR}/plugins/sqldrivers/)
 endif()
@@ -204,8 +232,6 @@ ADD_CUSTOM_TARGET (lupdate_drop
 )
 
 
-
-
 ################
 ## Executable ##
 ################
@@ -220,6 +246,11 @@ ADD_EXECUTABLE(startkladde
 	${CMAKE_CURRENT_BINARY_DIR}/svnVersion.h
 	${translation_files}
 )
+
+## Serial library
+add_subdirectory( 3rdparty/qserialdevice/src lib )
+target_link_libraries(startkladde qserialdevice)
+
 
 # TODO: on Unix, we used to link against mysql explicitly (even though it is
 # only used via the Qt plugin) to avoid "Error in my_thread_global_end(): 1
@@ -272,6 +303,13 @@ set_source_files_properties (
 
 # The executable depends on the svnheader target
 add_dependencies (startkladde svnheader)
+
+# Linker flags
+IF (WIN32)
+	# Required for inheriting from QwtPlot; seems to be related to the fact that
+	# QwtPlot is imported from a .dll.
+	set_property (TARGET startkladde PROPERTY LINK_FLAGS "-Wl,--enable-auto-import")
+ENDIF ()
 
 
 #############
@@ -465,7 +503,7 @@ SET (CPACK_DEBIAN_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION_SUMMARY}
 # hand, it is already required by libqt4-sql-mysql, so we don't have to specify
 # it explicitly.
 SET (CPACK_DEBIAN_PACKAGE_DEPENDS    "libc6 (>= 2.15), libgcc1 (>= 1:4.6.3), libstdc++6 (>= 4.6.3)")
-SET (CPACK_DEBIAN_PACKAGE_DEPENDS    "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt4-network (>= 4:4.8.0), libqt4-sql (>= 4:4.8.0), libqtcore4 (>= 4:4.8.0), libqtgui4 (>= 4:4.8.0), libqt4-sql-mysql (>= 4:4.8.0)")
+SET (CPACK_DEBIAN_PACKAGE_DEPENDS    "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt4-network (>= 4:4.8.0), libqt4-sql (>= 4:4.8.0), libqt4-xml (>=4:4.8.0), libqtcore4 (>= 4:4.8.0), libqtgui4 (>= 4:4.8.0), libqt4-sql-mysql (>= 4:4.8.0)")
 SET (CPACK_DEBIAN_PACKAGE_DEPENDS    "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libacpi0 (>=0.2)")
 SET (CPACK_DEBIAN_PACKAGE_MAINTAINER "Martin Herrmann <martin@famherrmann.de>")
 SET (CPACK_DEBIAN_PACKAGE_SECTION    "misc")
@@ -473,4 +511,3 @@ SET (CPACK_DEBIAN_PACKAGE_PRIORITY   "optional")
 SET (CPACK_DEBIAN_PACKAGE_RECOMMENDS "mysql-server")
 SET (CPACK_DEBIAN_PACKAGE_SUGGESTS   "kvkbd")
 
-include (CPack)

@@ -1,10 +1,3 @@
-/*
- * PersonModel.h
- *
- *  Created on: 25.09.2010
- *      Author: martin
- */
-
 #ifndef PERSONMODEL_H_
 #define PERSONMODEL_H_
 
@@ -20,7 +13,7 @@ class PersonModel: public ObjectModel<Person>
 		PersonModel ();
 		virtual ~PersonModel ();
 
-		virtual int columnCount () const=0;
+		virtual int columnCount () const;
 
 	protected:
 		virtual QVariant displayHeaderData (int column) const;

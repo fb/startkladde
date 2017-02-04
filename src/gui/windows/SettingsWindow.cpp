@@ -10,35 +10,41 @@
  *     - swapping with alt+up/alt+down
  *     - when double-clicking in the empty area, add an item
  *   - reset all to default
+ *   - add an indication that the database name/port have been overridden by a
+ *     command line argument and will not be saved
  */
 #include "SettingsWindow.h"
 
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
-#include <QItemEditorFactory>
-#include <QSettings>
-#include <QInputDialog>
-#include <QPushButton>
 #include <QDebug>
+#include <QFileDialog>
+#include <QInputDialog>
+#include <QItemEditorFactory>
+#include <QPushButton>
+#include <QSettings>
+#include <QStringList>
 #include <QShowEvent>
 
+#include "src/text.h"
 #include "src/config/Settings.h"
 #include "src/db/DatabaseInfo.h"
+#include "src/gui/dialogs.h"
+#include "src/gui/views/ReadOnlyItemDelegate.h"
+#include "src/gui/views/SpinBoxCreator.h"
+#include "src/gui/views/SpecialIntDelegate.h"
+#include "src/io/serial/SerialPortList.h"
+#include "src/i18n/notr.h"
+#include "src/i18n/TranslationManager.h"
 #include "src/plugin/info/InfoPlugin.h"
 #include "src/plugin/factory/PluginFactory.h"
 #include "src/plugin/info/InfoPluginSelectionDialog.h"
 #include "src/plugin/settings/PluginSettingsDialog.h"
-#include "src/gui/views/ReadOnlyItemDelegate.h"
-#include "src/gui/views/SpinBoxCreator.h"
-#include "src/gui/views/SpecialIntDelegate.h"
+#include "src/plugins/weather/ExternalWeatherPlugin.h"
+#include "src/util/fileSystem.h"
 #include "src/util/qString.h"
 #include "src/util/qList.h"
-#include "src/gui/dialogs.h"
-#include "src/i18n/notr.h"
-#include "src/i18n/TranslationManager.h"
-
-#include "src/plugins/weather/ExternalWeatherPlugin.h"
 
 const int captionColumn=0;
 const int    nameColumn=1;
@@ -62,19 +68,23 @@ SettingsWindow::SettingsWindow (QWidget *parent):
 	prepareText ();
 	setupText ();
 
+	ui.tabWidget->setCurrentIndex (0);
+
 	ui.dbTypePane->setVisible (false);
 
 	ui.languageInput->setSizeAdjustPolicy (QComboBox::AdjustToContents);
 	ui.languageInput->setLanguageItems (TranslationManager::instance ().listLanguages ());
 
-	// Make boolean columns and some other columns read-only
-	// The title column is read-only because we would have to write back the
-	// value to the plugin after editing it so the plugin settings dialog show
-	// it correctly.
-	ui.infoPluginList->setItemDelegateForColumn (   nameColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
-	ui.infoPluginList->setItemDelegateForColumn (captionColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
-	ui.infoPluginList->setItemDelegateForColumn (enabledColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
-	ui.infoPluginList->setItemDelegateForColumn ( configColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
+	// Populate the Flarm connection type list
+	foreach (Flarm::ConnectionType type, Flarm::ConnectionType_list ())
+	{
+		QString text=Flarm::ConnectionType_text (type);
+		ui.flarmConnectionTypeInput->addItem (text, type);
+	}
+
+	SerialPortList *serialPortList=SerialPortList::instance ();
+	connect (serialPortList, SIGNAL (portsChanged (QSet<QString>)), this, SLOT (populateSerialPortList ()));
+	populateSerialPortList ();
 
 	readSettings ();
 	updateWidgets ();
@@ -129,6 +139,74 @@ void SettingsWindow::setupText ()
 	adjustSize ();
 }
 
+/**
+ * A very special sorting criterion that defaults to stringNumericLessThan, but
+ * sorts all strings containing "USB" to the front of the list.
+ *
+ * Examples:
+ *   - ttyUSB1 < ttyS0 (entries containing "USB" before others)
+ *   - ttyUSB1 < ttyUSB10 (entries containing "USB": use stringNumericLessThan)
+ *   - ttyS1 < ttyS10 (entries not containing "USB": use stringNumericLessThan)
+ */
+bool serialPortLessThan (const QString &s1, const QString &s2)
+{
+	bool usb1=s1.contains ("USB", Qt::CaseInsensitive);
+	bool usb2=s2.contains ("USB", Qt::CaseInsensitive);
+
+	if (usb1 == usb2)
+		return stringNumericLessThan (s1, s2);
+	else
+		return usb1;
+}
+
+void SettingsWindow::populateSerialPortList ()
+{
+	// The edit text will be replaced with the first entry added to the list, so
+	// we have to preserve it.
+	QString editText=ui.flarmSerialPortInput->currentText ();
+
+	// TODO in the serial ports list, also indicate .isBusy (); however: (a)
+	// don't indicate a port as busy if we're using it ourselves, and (b) update
+	// the list when the status of a port changes.
+
+	ui.flarmSerialPortInput->clear ();
+
+	// Populate the serial ports list
+	SerialPortList *serialPortList=SerialPortList::instance ();
+	QStringList ports (serialPortList->availablePorts ().toList ());
+	qSort (ports.begin (), ports.end (), serialPortLessThan);
+	foreach (const QString &deviceName, ports)
+	{
+		QString deviceDescription=serialPortList->getDescription (deviceName);
+
+		QString text;
+		if (isBlank (deviceDescription))
+			text=tr ("%1").arg (deviceName);
+		else
+			text=tr ("%1 (%2)").arg (deviceName).arg (deviceDescription);
+
+		ui.flarmSerialPortInput->addItem (text, deviceName);
+	}
+
+	// Make boolean columns and some other columns read-only
+	// The title column is read-only because we would have to write back the
+	// value to the plugin after editing it so the plugin settings dialog show
+	// it correctly.
+	ui.infoPluginList->setItemDelegateForColumn (   nameColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
+	ui.infoPluginList->setItemDelegateForColumn (captionColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
+	ui.infoPluginList->setItemDelegateForColumn (enabledColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
+	ui.infoPluginList->setItemDelegateForColumn ( configColumn, new ReadOnlyItemDelegate (ui.infoPluginList));
+
+	// Restore the edit text. Note that the value will be restored even if the
+	// corresponding entry in the list (if any) does not exist any more. This is
+	// the correct behavior as the user may enter any port, even one that is not
+	// in the list.
+	// Note further that the cursor position and text selection may be changed.
+	// This only seems to be the case if the port that is currently entered in
+	// the text edit field is removed or added.
+	ui.flarmSerialPortInput->setEditText (editText);
+}
+
 
 // **************
 // ** Settings **
@@ -169,6 +247,22 @@ void SettingsWindow::readSettings ()
 	ui.locationInput         ->setText    (s.location);
 	ui.recordTowpilotCheckbox->setChecked (s.recordTowpilot);
 	ui.checkMedicalsCheckbox ->setChecked (s.checkMedicals);
+	// Flarm
+	ui.flarmGroupBox              ->setChecked  (s.flarmEnabled);
+	ui.flarmConnectionTypeInput   ->setCurrentItemByItemData (
+	                                             s.flarmConnectionType, 0);
+	ui.flarmSerialPortInput       ->setEditText (s.flarmSerialPort);
+	ui.flarmSerialBaudRateInput   ->setEditText (QString::number (
+	                                             s.flarmSerialBaudRate));
+	ui.flarmTcpHostInput          ->setText     (s.flarmTcpHost);
+	ui.flarmTcpPortInput          ->setValue    (s.flarmTcpPort);
+	ui.flarmFileNameInput         ->setText     (s.flarmFileName);
+	ui.flarmFileDelayInput        ->setValue    (s.flarmFileDelayMs);
+	ui.flarmAutoDeparturesCheckbox->setChecked  (s.flarmAutoDepartures);
+	ui.flarmDataViewableCheckbox  ->setChecked  (s.flarmDataViewable);
+	ui.flarmMapKmlFileNameInput   ->setText     (s.flarmMapKmlFileName);
+	// FlarmNet
+	ui.flarmNetEnabledCheckbox    ->setChecked (s.flarmNetEnabled);
 	// Permissions
 	ui.protectSettingsCheckbox      ->setChecked (s.protectSettings);
 	ui.protectLaunchMethodsCheckbox ->setChecked (s.protectLaunchMethods);
@@ -246,6 +340,21 @@ void SettingsWindow::writeSettings ()
 	s.location      =ui.locationInput         ->text ();
 	s.recordTowpilot=ui.recordTowpilotCheckbox->isChecked ();
 	s.checkMedicals =ui.checkMedicalsCheckbox ->isChecked ();
+	// Flarm
+	s.flarmEnabled	     =ui.flarmGroupBox              ->isChecked ();
+	s.flarmConnectionType=(Flarm::ConnectionType)
+	                      ui.flarmConnectionTypeInput   ->currentItemData ().toInt ();
+	s.flarmSerialPort    =ui.flarmSerialPortInput       ->currentText ();
+	s.flarmSerialBaudRate=ui.flarmSerialBaudRateInput   ->currentText ().toInt ();
+	s.flarmTcpHost       =ui.flarmTcpHostInput          ->text ();
+	s.flarmTcpPort       =ui.flarmTcpPortInput          ->value ();
+	s.flarmFileName      =ui.flarmFileNameInput         ->text ();
+	s.flarmFileDelayMs   =ui.flarmFileDelayInput        ->value ();
+	s.flarmAutoDepartures=ui.flarmAutoDeparturesCheckbox->isChecked ();
+	s.flarmDataViewable  =ui.flarmDataViewableCheckbox  ->isChecked ();
+	s.flarmMapKmlFileName=ui.flarmMapKmlFileNameInput   ->text ();
+	// FlarmNet
+	s.flarmNetEnabled	=ui.flarmNetEnabledCheckbox     ->isChecked ();
 	// Permissions
 	s.protectSettings      =ui.protectSettingsCheckbox      ->isChecked ();
 	s.protectLaunchMethods =ui.protectLaunchMethodsCheckbox ->isChecked ();
@@ -303,6 +412,28 @@ QStringList SettingsWindow::getPluginPaths ()
 	return pluginPaths;
 }
 
+
+// ***********
+// ** Flarm **
+// ***********
+
+void SettingsWindow::on_browseFlarmFileButton_clicked ()
+{
+	// TODO: code duplication - browse functionality
+	QString currentFileName=ui.flarmFileNameInput->text ();
+
+	QString fileName=QFileDialog::getOpenFileName (
+		this,
+		tr ("Select Flarm file"),
+		existingParentDirectory (currentFileName, QDir ()).absolutePath (),
+		notr ("*.txt;;*"),
+		NULL,
+		0
+		);
+
+	if (!fileName.isEmpty ())
+		ui.flarmFileNameInput->setText (fileName);
+}
 
 // *****************
 // ** Plugin path **
@@ -498,6 +629,24 @@ void SettingsWindow::on_browseWeatherWindowCommandButton_clicked ()
 		ui.weatherWindowCommandInput->setText (filename);
 }
 
+void SettingsWindow::on_browseKmlFileButton_clicked ()
+{
+	QString currentFileName=ui.flarmMapKmlFileNameInput->text ();
+
+
+	QString fileName=QFileDialog::getOpenFileName (
+		this,
+		tr ("Select KML file"),
+		existingParentDirectory (currentFileName, QDir ()).absolutePath (),
+		notr ("*.kml"),
+		NULL,
+		0
+		);
+
+	if (!fileName.isEmpty ())
+		ui.flarmMapKmlFileNameInput->setText (fileName);
+}
+
 
 
 // *************
@@ -537,6 +686,7 @@ void SettingsWindow::on_buttonBox_accepted ()
  */
 bool SettingsWindow::allowEdit ()
 {
+	// TODO should the use PasswordPermission?
 	QString message;
 	QString requiredPassword;
 
@@ -638,6 +788,50 @@ void SettingsWindow::on_languageInput_activated (int index)
 }
 void SettingsWindow::updateWidgets ()
 {
+	// MySQL
 	ui.mysqlPortInput->setEnabled (!ui.mysqlDefaultPortCheckBox->isChecked ());
+
+	// Flarm
+	QVariant connectionTypeValue=ui.flarmConnectionTypeInput->currentItemData ();
+	Flarm::ConnectionType connectionType=(Flarm::ConnectionType)connectionTypeValue.toInt ();
+
+	ui.flarmSerialPortLabel    ->setVisible (connectionType==Flarm::serialConnection);
+	ui.flarmSerialPortInput    ->setVisible (connectionType==Flarm::serialConnection);
+	ui.flarmSerialBaudRateLabel->setVisible (connectionType==Flarm::serialConnection);
+	ui.flarmSerialBaudRatePane ->setVisible (connectionType==Flarm::serialConnection);
+
+	ui.flarmTcpHostLabel->setVisible (connectionType==Flarm::tcpConnection);
+	ui.flarmTcpHostInput->setVisible (connectionType==Flarm::tcpConnection);
+	ui.flarmTcpPortLabel->setVisible (connectionType==Flarm::tcpConnection);
+	ui.flarmTcpPortPane ->setVisible (connectionType==Flarm::tcpConnection);
+
+	ui.flarmFileNamePane  ->setVisible (connectionType==Flarm::fileConnection);
+	ui.flarmFileNameLabel ->setVisible (connectionType==Flarm::fileConnection);
+	ui.flarmFileDelayPane ->setVisible (connectionType==Flarm::fileConnection);
+	ui.flarmFileDelayLabel->setVisible (connectionType==Flarm::fileConnection);
 }
 
+
+void SettingsWindow::on_flarmConnectionTypeInput_activated (int index)
+{
+	(void)index;
+	updateWidgets ();
+}
+
+void SettingsWindow::on_flarmSerialPortInput_activated (int index)
+{
+	// An item was selected. This can either be one of the predefined items, or
+	// a custom text.
+	// A predefined item will have a text of "port name (description)". We don't
+	// want the description part in the text field, just the port name. The port
+	// name is also stored in the item data for the item. For a custom text, the
+	// item data will be empty.
+
+	// Retrieve the item data for the item that was activated.
+	QString text=ui.flarmSerialPortInput->itemData (index).toString ();
+
+	// If the item data is not empty (i. e. it is one of the predefined items),
+	// set the text to the item data.
+	if (!text.isEmpty ())
+		ui.flarmSerialPortInput->setEditText (text);
+}

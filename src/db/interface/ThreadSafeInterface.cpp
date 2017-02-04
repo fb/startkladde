@@ -262,7 +262,8 @@ void ThreadSafeInterface::slot_ping (Returner<void> *returner)
  */
 void ThreadSafeInterface::cancelConnection ()
 {
-	interface->cancelConnection ();
+	if (interface)
+		interface->cancelConnection ();
 }
 
 

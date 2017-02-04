@@ -8,6 +8,7 @@
 #include "src/model/LaunchMethod.h"
 #include "src/model/Plane.h"
 #include "src/model/Flight.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h" 
 #include "src/i18n/notr.h"
 
 /*
@@ -263,5 +264,6 @@ INSTANTIATE_TEMPLATES (Person      )
 INSTANTIATE_TEMPLATES (Plane       )
 INSTANTIATE_TEMPLATES (Flight      )
 INSTANTIATE_TEMPLATES (LaunchMethod)
+INSTANTIATE_TEMPLATES (FlarmNetRecord)
 
 #undef INSTANTIATE_TEMPLATES

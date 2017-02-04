@@ -1,0 +1,3 @@
+[submodule "3rdparty/qserialdevice"]
+	path = 3rdparty/qserialdevice
+	url = https://gitorious.org/qserialdevice/qserialdevice.git

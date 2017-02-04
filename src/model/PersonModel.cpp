@@ -1,10 +1,3 @@
-/*
- * PersonModel.cpp
- *
- *  Created on: 25.09.2010
- *      Author: martin
- */
-
 #include "PersonModel.h"
 
 #include <QApplication>

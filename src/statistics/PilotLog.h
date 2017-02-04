@@ -12,9 +12,8 @@
 class Cache;
 class Flight;
 
-/*
- * TODO: display guest as "(Guest)"
- */
+// TODO: display guest as "(Guest)"
+// TODO: consider basing this (and other statistics classes) on ObjectListModel
 class PilotLog: public QAbstractTableModel
 {
 		Q_OBJECT

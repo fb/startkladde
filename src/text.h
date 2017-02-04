@@ -34,5 +34,7 @@ QChar getMnemonic (const QAbstractButton *button);
 
 QString repeatString (const QString &string, unsigned int num, const QString &separator=QString ());
 
+bool stringNumericLessThan (const QString &s1, const QString &s2);
+
 #endif
 

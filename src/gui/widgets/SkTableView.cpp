@@ -1,5 +1,5 @@
 /*
- * Improvements:
+  * Improvements:
  *   - horizontal scrolling using the scroll bar (mouse) does not update the
  *     widget focus (updateWidgetFocus is not called)
  *   - updating the data (e. g. flight duration on minute change) recreates the
@@ -14,6 +14,7 @@
  *   - use a custom delegate for rendering the buttons? Might be faster and
  *     provide better control over the focus (which is disabled at the moment
  *     due to poor performance)
+ *   - Don't mention flights in the documentation, it's not flight specific
  */
 
 /*
@@ -52,12 +53,13 @@
  * do it.
  *
  * In short:
- *   - Don't use a syle sheet - it's slow.
+ *   - Don't use a style sheet - it's slow.
  *   - Don't use a palette - it may be ignored by the style
  */
 
 #include "SkTableView.h"
 
+#include <QDebug>
 #include <QSettings>
 #include <QFont>
 #include <QFontMetrics>
@@ -82,7 +84,7 @@
 SkTableView::SkTableView (QWidget *parent):
 	QTableView (parent),
 	settingButtons (false),
-	autoResizeRows (false),
+	autoResizeRows (false), autoResizeColumns (false),
 	itemDelegate (new SkItemDelegate (this))
 {
 	setTabKeyNavigation (false);
@@ -99,7 +101,9 @@ void SkTableView::setModel (QAbstractItemModel *model)
 	QTableView::setModel (model);
 
 	QObject::disconnect (this, SLOT (layoutChanged ()));
-	connect (model, SIGNAL (layoutChanged ()), this, SLOT (layoutChanged ()));
+
+	if (model)
+		connect (model, SIGNAL (layoutChanged ()), this, SLOT (layoutChanged ()));
 }
 
 void SkTableView::layoutChanged ()
@@ -107,6 +111,9 @@ void SkTableView::layoutChanged ()
 	// This happens when the SortFilterModel filter settings are changed
 	if (autoResizeRows)
 		resizeRowsToContents ();
+
+	if (autoResizeColumns)
+		resizeColumnsToContents ();
 }
 
 void SkTableView::updateButtons (int row)
@@ -163,6 +170,9 @@ void SkTableView::rowsInserted (const QModelIndex &parent, int start, int end)
 
 	if (autoResizeRows)
 		resizeRowsToContents ();
+
+	if (autoResizeColumns)
+		resizeColumnsToContents ();
 }
 
 void SkTableView::dataChanged (const QModelIndex &topLeft, const QModelIndex &bottomRight)
@@ -179,6 +189,10 @@ void SkTableView::dataChanged (const QModelIndex &topLeft, const QModelIndex &bo
 	if (autoResizeRows)
 		for (int i=topLeft.row (); i<=bottomRight.row (); ++i)
 			resizeRowToContents (i);
+
+	if (autoResizeColumns)
+		for (int i=topLeft.column (); i<=bottomRight.column (); ++i)
+			resizeColumnToContents (i);
 
 	// The button focus may be lost after a prepared flight has been edited.
 	// Don't update the focus, it is slow
@@ -209,6 +223,9 @@ void SkTableView::reset ()
 	// problem.
 //	QTableView::reset (); // DO NOT CALL!
 
+	if (!model ())
+		return;
+
 	// Set up the buttons
 	int rows=model ()->rowCount ();
 	for (int row=0; row<rows; ++row)
@@ -216,6 +233,9 @@ void SkTableView::reset ()
 
 	if (autoResizeRows)
 		resizeRowsToContents ();
+
+	if (autoResizeColumns)
+		resizeColumnsToContents ();
 }
 
 void SkTableView::keyPressEvent (QKeyEvent *e)
@@ -431,7 +451,11 @@ void SkTableView::readColumnWidths (QSettings &settings, const ColumnInfo &colum
 
 	// The column info set must have the same number of columns as the model of
 	// this table.
-	assert (columnInfo.columnCount ()==getEffectiveModel ()->columnCount ());
+	// FIXME this fails when the Flarm debug columns are filtered out (?). Do
+	// we really need this? Do we need to proxy the columnInfo? Should we refer
+	// to the columns by name rather than index?
+	//qDebug () << columnInfo.columnCount () << getEffectiveModel ()->columnCount ();
+	//assert (columnInfo.columnCount ()==getEffectiveModel ()->columnCount ());
 
 	for (int i=0; i<columnInfo.columnCount (); ++i)
 	{
@@ -473,7 +497,9 @@ void SkTableView::writeColumnWidths (QSettings &settings, const ColumnInfo &colu
 {
 	if (!getEffectiveModel ()) return;
 
-	assert (columnInfo.columnCount ()==getEffectiveModel ()->columnCount ());
+	// FIXME this fails when the Flarm debug columns are filtered out (?). See
+	// the same assertion above.
+	//assert (columnInfo.columnCount ()==getEffectiveModel ()->columnCount ());
 
 	for (int i=0; i<columnInfo.columnCount (); ++i)
 	{

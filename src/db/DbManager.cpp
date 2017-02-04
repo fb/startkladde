@@ -27,6 +27,7 @@
 #include "src/model/LaunchMethod.h"
 #include "src/model/Plane.h"
 #include "src/model/Flight.h"
+#include "src/flarm/flarmNet/FlarmNetRecord.h"
 #include "src/config/Settings.h"
 #include "src/i18n/notr.h"
 
@@ -500,14 +501,14 @@ void DbManager::fetchFlights (QDate date, QWidget *parent)
  * @return the list of flights
  */
 // FIXME throws?
-// FIXME it might be better to implement a template getObjects method and do the
+// TODO it might be better to implement a template getObjects method and do the
 // query selection (and potentially the after filter) outside of this method
 QList<Flight> DbManager::getFlights (const QDate &first, const QDate &last, QWidget *parent)
 {
 	Returner<QList<Flight> > returner;
 	SignalOperationMonitor monitor;
 	QObject::connect (&monitor, SIGNAL (canceled ()), &interface, SLOT (cancelConnection ()), Qt::DirectConnection);
-	// FIXME make sure that not dbWorker method is called with a temporary as
+	// FIXME make sure that no dbWorker method is called with a temporary as
 	// a reference
 	Query condition=Flight::dateRangeSupersetCondition (first, last);
 	dbWorker.getObjects<Flight> (returner, monitor, condition);
@@ -566,6 +567,16 @@ template<class T> dbId DbManager::createObject (T &object, QWidget *parent)
 	dbWorker.createObject (returner, monitor, object);
 	MonitorDialog::monitor (monitor, tr ("Creating %1").arg (T::objectTypeDescription ()), parent);
 	return returner.returnedValue ();
+}
+
+template<class T> void DbManager::createObjects (QList<T> &objects, QWidget *parent)
+{
+	Returner<void> returner;
+	SignalOperationMonitor monitor;
+	QObject::connect (&monitor, SIGNAL (canceled ()), &interface, SLOT (cancelConnection ()), Qt::DirectConnection);
+	dbWorker.createObjects (returner, monitor, objects);
+	MonitorDialog::monitor (monitor, tr ("Creating %1").arg (T::objectTypeDescriptionPlural ()), parent);
+	returner.wait ();
 }
 
 template<class T> int DbManager::updateObject (const T &object, QWidget *parent)
@@ -766,16 +777,19 @@ void DbManager::settingsChanged ()
 // ***************************
 
 #	define INSTANTIATE_TEMPLATES(T) \
-		template bool DbManager::objectUsed  <T> (dbId id        , QWidget *parent); \
-		template void DbManager::deleteObject<T> (dbId id        , QWidget *parent); \
-		template dbId DbManager::createObject<T> (T &object      , QWidget *parent); \
-		template int  DbManager::updateObject<T> (const T &object, QWidget *parent); \
+		template bool DbManager::objectUsed  <T>  (dbId id                , QWidget *parent); \
+		template void DbManager::deleteObject<T>  (dbId id                , QWidget *parent); \
+		template void DbManager::deleteObjects<T> (const QList<dbId>& ids , QWidget *parent); \
+		template dbId DbManager::createObject<T>  (T &object              , QWidget *parent); \
+		template void DbManager::createObjects<T> (      QList<T> &objects, QWidget *parent); \
+		template int  DbManager::updateObject<T>  (const T &object        , QWidget *parent); \
 		template void DbManager::refreshObjects<T> (QWidget *parent);
 		// Empty line
 
-INSTANTIATE_TEMPLATES (Person      )
-INSTANTIATE_TEMPLATES (Plane       )
-INSTANTIATE_TEMPLATES (Flight      )
-INSTANTIATE_TEMPLATES (LaunchMethod)
+INSTANTIATE_TEMPLATES (Person        )
+INSTANTIATE_TEMPLATES (Plane         )
+INSTANTIATE_TEMPLATES (Flight        )
+INSTANTIATE_TEMPLATES (LaunchMethod  )
+INSTANTIATE_TEMPLATES (FlarmNetRecord)
 
 #	undef INSTANTIATE_TEMPLATES

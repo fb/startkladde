@@ -1,10 +1,3 @@
-/*
- * SortedSet.h
- *
- *  Created on: 09.03.2010
- *      Author: Martin Herrmann
- */
-
 #ifndef SORTEDSET_H_
 #define SORTEDSET_H_
 
@@ -20,9 +13,12 @@
  *   - contains: O(log n)
  *   - insert: O(log n)
  *   - remove: unknown (O(n)?)
- *   - toQList: O(1) (O(n) after change)
+ *   - toQList: O(n) (O(1) for repeated calls without changes to the set)
  *
  * This class is not thread safe
+ *
+ * Files calling methods of a SortedSet (as opposed to only declaring instances
+ * of SortedSet) must also include SortedSet_impl.h.
  */
 template<typename T> class SortedSet
 {

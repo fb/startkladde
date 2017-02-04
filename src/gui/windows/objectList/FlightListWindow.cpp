@@ -45,7 +45,9 @@ FlightListWindow::FlightListWindow (DbManager &manager, QWidget *parent):
 	flightList=new MutableObjectList<Flight> ();
 	flightModel=new FlightModel (manager.getCache ());
 	flightModel->setColorEnabled (false);
-	flightListModel=new ObjectListModel<Flight> (flightList, true, flightModel, true, this);
+	flightListModel=new ObjectListModel<Flight> (this);
+	flightListModel->setList  (flightList , true);
+	flightListModel->setModel (flightModel, true);
 
 	// Set up the sorting proxy model
 	proxyModel=new QSortFilterProxyModel (this);
@@ -184,6 +186,7 @@ void FlightListWindow::on_actionExport_triggered ()
 	}
 
 	// Query the user for a file name
+	// TODO we should store and use the application-wide "last used directory"
 	QString fileName=QFileDialog::getSaveFileName (this,
 			tr ("Export flight database"), notr ("./")+defaultFileName,
 			tr ("CSV files (*.csv);;All files (*)"));
@@ -243,7 +246,7 @@ void FlightListWindow::languageChanged ()
 
 	// See the FlightModel class documentation
 	flightModel->updateTranslations ();
-	flightListModel->reset ();
+	flightListModel->refreshAll ();
 
 	ui.table->resizeColumnsToContents ();
 }

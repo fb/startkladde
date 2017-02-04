@@ -8,12 +8,15 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
+#include <stdint.h>
+
 #include <QObject>
 #include <QString>
 #include <QStringList>
 
 #include "src/db/DatabaseInfo.h"
 #include "src/i18n/LanguageConfiguration.h"
+#include "src/flarm/Flarm.h"
 
 class InfoPlugin;
 
@@ -49,7 +52,21 @@ class Settings: public QObject
 		QString location;
 		bool recordTowpilot;
 		bool checkMedicals;
-		// Permissions
+		// Flarm
+		bool flarmEnabled;
+		Flarm::ConnectionType flarmConnectionType;
+		QString  flarmSerialPort;
+		int      flarmSerialBaudRate;
+		QString  flarmTcpHost;
+		uint16_t flarmTcpPort;
+		QString  flarmFileName;
+		int      flarmFileDelayMs;
+		bool flarmAutoDepartures; // Also landings and touch-and-gos
+		bool flarmDataViewable;
+		QString flarmMapKmlFileName;
+		// FlarmNet
+		bool flarmNetEnabled;
+		// Database permissions
 		bool protectSettings;
 		bool protectLaunchMethods;
 		bool protectMergePeople;
@@ -94,6 +111,8 @@ class Settings: public QObject
 		// in the GUI, though.
 		bool overrideDatabaseName;
 		QString overrideDatabaseNameValue;
+		bool overrideDatabasePort;
+		int overrideDatabasePortValue;
 
 	protected:
 		void readSettings ();

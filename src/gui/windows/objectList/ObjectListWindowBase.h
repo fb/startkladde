@@ -40,6 +40,11 @@ class ObjectListWindowBase : public SkMainWindow<Ui::ObjectListWindowBaseClass>
 
 		PasswordCheck databasePasswordCheck;
 		PasswordPermission editPermission;
+
+        private slots:
+                // we cannot declare the slots in the derived template class
+                virtual void searchClear() = 0;
+                virtual void searchTextChanged (const QString&) = 0;
 };
 
 #endif

@@ -16,7 +16,7 @@ class DbEvent
 {
 	public:
 		// ** Types
-		enum Table { tablePeople, tableFlights, tableLaunchMethods, tablePlanes };
+		enum Table { tablePeople, tableFlights, tableLaunchMethods, tablePlanes, tableFlarmNetRecords };
 		enum Type { typeAdd, typeDelete, typeChange };
 
 		// ** Construction
